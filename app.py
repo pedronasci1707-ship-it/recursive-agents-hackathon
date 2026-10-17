@@ -124,14 +124,16 @@ st.caption("Powered by Crusoe Managed Inference + NVIDIA Nemotron · Challenge 0
 if go:
     st.session_state.pop("result", None)
     st.subheader("Live agent timeline")
+    st.caption("Newest event on top")
     status_box = st.status("Agents working…", expanded=False)
     timeline = st.empty()
     seen = []
 
     def on_event(event):
         seen.append(event)
-        timeline.html(timeline_html(seen))
-        status_box.update(label=f"{event['agent']}: {event['message'][:90]}")
+        # Newest first while running, so the key moments stay on screen; the full log is chronological afterwards.
+        timeline.html(timeline_html(reversed(seen)))
+        status_box.update(label=md_safe(f"{event['agent']}: {event['message'][:90]}"))
 
     try:
         if offline:
