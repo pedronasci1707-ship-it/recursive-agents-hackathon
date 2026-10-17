@@ -16,8 +16,7 @@ left, right = st.columns([1.3, 1], gap="large")
 with left:
     # As an <img>: st.html's sanitizer drops inline <svg> (its CSS animation still runs inside the image).
     st.html(f"""
-    <div class="pill" style="width:fit-content;margin-bottom:14px">{c.icon("verified_user")}Every kit verified before it ships</div>
-    <h1 class="landing-title">Move-in <em>ready.</em><br>Move-out <em>easy.</em></h1>
+    <h1 class="landing-title"><span>Move-in <em>ready.</em></span><span>Move-out <em>easy.</em></span></h1>
     <div class="handoff">
       <img src="data:image/svg+xml;base64,{HANDOFF}"
            alt="A student who is moving out hands a box of room essentials to a student who is moving in">
@@ -59,11 +58,11 @@ with right:
         st.switch_page("ui/pages/demo.py")
 
 st.write("")
-cols = st.columns(4)
-for col, (ico, title, text) in zip(cols, [
-    ("inventory_2", "Kits for your room", "Fridge, lamp, chair, kitchen basics: picked for your room and budget."),
-    ("verified_user", "Checked twice", "Availability, safety recalls and price are verified before we confirm."),
-    ("savings", "Up to 60% off new", "Quality second-hand at student prices, delivered on move-in day."),
-    ("sell", "Sell before you leave", "Snap a photo, get an instant offer, we pick it up."),
+cols = st.columns(2, gap="large")
+for col, (icons, title, text) in zip(cols, [
+    (["skillet", "dinner_dining", "table_lamp"], "Kits for your room",
+     "Pans, plates, a lamp, a fridge: picked for your room and budget."),
+    (["sell"], "Sell before you leave", "Snap a photo, get an instant offer, we pick it up."),
 ]):
-    col.html(f'<div class="feature">{c.icon(ico)}<h4>{title}</h4><p>{text}</p></div>')
+    stickers = "".join(c.icon(i) for i in icons)
+    col.html(f'<div class="feature"><span class="stickers">{stickers}</span><h4>{title}</h4><p>{text}</p></div>')

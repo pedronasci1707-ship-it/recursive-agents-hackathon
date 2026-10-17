@@ -124,12 +124,15 @@ a { color: var(--cobalt); }
 .hero > .ms { position: absolute; right: 26px; top: 26px; font-size: 64px; opacity: 1; color: var(--ink);
               background: #fff; border: 2px solid var(--ink); border-radius: 50%; padding: 12px; transform: rotate(-12deg); }
 .hero .scribble { color: var(--sun); font-size: 1.1rem; margin-top: 18px; }
-.landing-title { font-size: 3.4rem; font-weight: 900; letter-spacing: -0.05em; line-height: 1; margin: 0 0 18px; color: var(--ink); }
+.landing-title { font-size: 3.4rem; font-weight: 900; letter-spacing: -0.05em; line-height: 1; margin: 18px 0 10px; color: var(--ink);
+                 transform: rotate(-6deg); transform-origin: left center; }
+/* staircase: the second line steps right so the two lines don't stack like a list */
+.landing-title span { display: block; width: fit-content; }
+.landing-title span:nth-child(2) { margin: 6px 0 0 1.4em; transform: rotate(3deg); }
 .landing-title em { font-family: 'Averia Serif Libre', Georgia, serif; font-style: italic; font-weight: 700; letter-spacing: -0.01em; }
-.landing-title em:first-of-type { color: var(--cobalt); }
-.landing-title em:last-of-type { color: var(--tomato); }
-.handoff { background: #fff; border: 2px solid var(--ink); border-radius: 28px; box-shadow: 6px 6px 0 var(--ink);
-           padding: 14px 18px 8px; }
+.landing-title span:nth-child(1) em { color: var(--cobalt); }
+.landing-title span:nth-child(2) em { color: var(--tomato); }
+.handoff { padding: 0; }   /* characters stand on the page, not inside a frame */
 .handoff img { width: 100%; display: block; }
 .handoff + .scribble, .landing-title ~ .scribble { margin-top: 16px; color: var(--cobalt); }
 .pill { display: inline-flex; align-items: center; gap: 6px; font-size: .8rem; font-weight: 700; padding: 5px 12px;
@@ -202,6 +205,12 @@ a { color: var(--cobalt); }
                padding: 8px; display: inline-block; position: absolute; top: -24px; right: 18px; transform: rotate(12deg);
                box-shadow: 2px 2px 0 var(--ink); }
 [data-testid="stColumn"]:nth-child(even) .feature .ms { transform: rotate(-10deg); }
+/* several stickers on one card edge (landing page) */
+.feature .stickers { position: absolute; top: -26px; right: 18px; display: flex; gap: 6px; }
+.feature .stickers .ms { position: static; }
+.feature .stickers .ms:nth-child(1) { transform: rotate(-12deg); background: var(--peach); }
+.feature .stickers .ms:nth-child(2) { transform: rotate(6deg) translateY(-6px); background: var(--sky); }
+.feature .stickers .ms:nth-child(3) { transform: rotate(14deg); background: var(--sun); }
 [data-testid="stColumn"]:nth-child(2) .feature .ms { background: var(--sky); }
 [data-testid="stColumn"]:nth-child(3) .feature .ms { background: var(--peach); }
 [data-testid="stColumn"]:nth-child(4) .feature .ms { background: #BFE6CC; }
