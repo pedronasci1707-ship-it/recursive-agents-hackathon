@@ -17,6 +17,8 @@ PAGES = {
     "kit": st.Page("ui/pages/student.py", title="My kit", url_path="my-kit"),
     "shop": st.Page("ui/pages/shop.py", title="Shop", url_path="shop"),
     "sell": st.Page("ui/pages/seller.py", title="Sell", url_path="sell"),
+    "livedemo": st.Page("ui/pages/livedemo.py", title="Live demo", icon=":material/play_circle:",
+                        url_path="live-demo"),
     "control": st.Page("ui/pages/control.py", title="Agent control room", icon=":material/hub:",
                        url_path="control-room"),
 }
@@ -24,7 +26,7 @@ PAGES = {
 BY_ROLE = {
     "student": ["kit", "shop", "sell"],
     "seller": ["sell", "shop"],
-    "admin": ["control"],
+    "admin": ["livedemo", "control"],
 }
 
 user = state.user()

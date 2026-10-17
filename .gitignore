@@ -33,3 +33,6 @@ Captura de tela*.png
 *.ppt
 *.docx
 ~$*
+
+# Photos uploaded through the app (seller listings, live demo)
+static/uploads/
