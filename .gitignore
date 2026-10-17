@@ -27,3 +27,7 @@ Thumbs.db
 
 # Screenshots
 Captura de tela*.png
+
+# Business docs (local only)
+*.pptx
+*.ppt

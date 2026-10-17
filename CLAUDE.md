@@ -24,15 +24,29 @@ Fonte: resumo do ChatGPT a partir das fotos dos slides (as imagens originais nã
 - Submissão com links públicos e todos os integrantes adicionados.
 - O que pontua: autonomia, comunicação entre agentes, verificação de resultados, recuperação de falhas.
 
-## Status
-- [x] Conta Crusoe, créditos e Intelligence API Key (chave apareceu num print no ChatGPT — usuário optou por manter; recomendado revogar e gerar outra)
-- [x] Ambiente local: `.venv`, dependências, `core/crusoe_client.py`, `check_crusoe.py`
-- [ ] Chave colada no `.env` e `python check_crusoe.py` passando
-- [ ] Repo GitHub público criado e amigo adicionado como colaborador
-- [ ] **Escolher o desafio e a ideia** ← próximo passo
-- [ ] MVP → testes (cenário normal + falha induzida + recuperação) → vídeo → submissão
+## Projeto escolhido: CampusLoop AI (desafio 01 — Done Means Done)
+Decidido em 17/out ~13:00 PDT. Origem: conversa no ChatGPT + `Ideia Revenda Estados Unidos.pptx` (plano de negócio de revenda universitária; local, não vai para o GitHub).
+- **Negócio (futuro):** recompra de itens no move-out de universitários (mini-fridge, microondas, mesa, cadeira...), montagem de kits e revenda no move-in. Modelo B = parceria com prédios de apartamentos universitários, piloto perto da NC State (Raleigh, NC). Slogan: "turn student move-out waste into affordable move-in solutions".
+- **O que construímos hoje:** só o **motor de agentes**, não o marketplace. Nada de pagamento, entrega, login ou app mobile. Ofertas são simulações, com catálogo de teste de 10–20 itens.
+- **Agentes:** Inventory (classifica itens/condição) · Pricing (oferta e margem) · Kit (monta 2–3 kits por demanda) · Verification (confere estoque, margem, restrições, recalls) · **Recursive Controller** (válido → finaliza; erro corrigível → replaneja e repete; precisa de aprovação → pede humano; limite de tentativas → para).
+- **Momento-chave da demo:** o Kit Agent monta um kit de ~US$ 200 incluindo um frigobar já reservado para outro comprador; o Verification Agent detecta o conflito, o sistema NÃO declara concluído, volta ao planejador, troca o item, recalcula a margem e valida. Isso é o "Done Means Done".
+- **Regra de design:** LLM (Crusoe) decide e raciocina; cálculos financeiros, checagem de estoque e regras de segurança são **código determinístico** (confiável e testável).
+- **UI:** Streamlit mostrando decisões, custos, histórico de tentativas/correções.
+- Alternativa descartada por ora: OneEntity AI (unificar cadastros de empresas dos EUA com dados públicos SEC/GLEIF).
+- Pitch para mentor (EN): ver conversa do ChatGPT; pergunta final ao mentor: "scalable model — focus first on apartment partnerships or on the AI tech?".
 
-Cronograma sugerido: até 12:15 ideia definida · 12:15–15:00 build · 15:00–16:00 testes/polimento · 16:00–16:45 vídeo + README · **16:45 submeter** (margem antes das 17:00).
+## Status
+- [x] Conta Crusoe, créditos e Intelligence API Key
+- [x] Ambiente local: `.venv`, dependências, `core/crusoe_client.py`, `check_crusoe.py` — conexão testada, 4 modelos OK
+- [x] Repo GitHub **público**: https://github.com/pedronasci1707-ship-it/recursive-agents-hackathon (amigo adicionado como colaborador)
+- [x] Desafio e ideia escolhidos (CampusLoop AI)
+- [ ] Dividir tarefas com o amigo
+- [ ] MVP: catálogo → agentes → controller recursivo → Streamlit
+- [ ] Testes (cenário normal + falha induzida + recuperação)
+- [ ] Vídeo de 1 min (EN) + README final (EN)
+- [ ] Submeter até 16:45 PDT (prazo 17:00)
+
+Cronograma: 13:15–15:30 build · 15:30–16:15 testes/polimento · 16:15–16:45 vídeo + README + submissão.
 
 ## Crusoe Managed Inference
 - Endpoint OpenAI-compatible: `https://api.inference.crusoecloud.com/v1`. Referência completa: skill `.claude/skills/crusoe-hackathon/SKILL.md` (arquivo oficial da Crusoe) — consultar antes de qualquer dúvida sobre modelos, parâmetros e erros.
