@@ -157,7 +157,8 @@ def build_page():
         st.info("Our agents are busy with other students right now. Try **Build my kit** again in a few seconds.")
     form_col, info_col = st.columns([1.5, 1], gap="large")
     with form_col, st.container(border=True):
-        move_in = st.date_input("Move-in date", value=prefs["move_in"], format="MM/DD/YYYY")
+        move_in = st.date_input("Move-in date", value=max(prefs["move_in"], date.today()),
+                                min_value=date.today(), format="MM/DD/YYYY")
         budget = st.slider("Budget", 80, 400, prefs["budget"], step=10, format="$%d")
         needs = st.pills("What do you need?", list(c.LABEL)[:-1], selection_mode="multi",
                          default=prefs["needs"], format_func=lambda k: c.LABEL[k])
@@ -212,7 +213,9 @@ def build_page():
                 box.write(f":material/check_small: {msg}")
 
         res = state.run_agents(on_event, live=state.has_api_key(), custom_request=custom)
-        box.update(label="Your kit is ready", state="complete")
+        built = store.kit_for(res, rid)
+        box.update(label="Your kit is ready" if built and built["status"] == "verified"
+                   else "Your request needs a quick human review", state="complete")
     if store.kit_for(res, rid) is None:
         st.session_state[f"no_kit_{rid}"] = True
     st.session_state.pop(f"order_{rid}", None)
@@ -229,7 +232,7 @@ if kit is None or st.session_state.get(f"rebuild_{rid}"):
 # ---------------------------------------------------------------- kit page
 verified = kit["status"] == "verified"
 order = st.session_state.get(f"order_{rid}")
-order_no = f"CL-{res['run_id'][:4].upper()}{rid[-1]}"
+order_no = f"CL-{res['run_id'][:4].upper()}-{rid[-4:].upper()}"
 
 # Checkout hold: the verified kit's items stay reserved for this student for HOLD_MINUTES. If they don't pay in
 # time (or cancel), the items go back to the shop for other students.
@@ -296,8 +299,12 @@ with left:
                     sum(i["category"] == item["category"] for i in kit["items"]) > 1
                 if extra and not order and st.button("Remove", key=f"rm_{item['id']}", icon=":material/close:",
                                                     width="stretch"):
-                    store.remove(res, kit, item["id"])
-                    st.rerun()
+                    ok, msgs = store.remove(res, kit, item["id"])
+                    if ok:
+                        st.toast(f"Removed {item['name']} · kit re-verified", icon=":material/verified:")
+                        st.rerun()
+                    for message in msgs:
+                        st.error(message)
         if u["role"] == "student":  # the admin storefront preview has no Shop page in its navigation
             st.page_link("ui/pages/shop.py", label="Add more for your room", icon=":material/add_shopping_cart:")
     st.html(c.trust_strip())

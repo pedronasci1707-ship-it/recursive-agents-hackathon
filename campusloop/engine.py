@@ -8,13 +8,15 @@ Run from the repo root:
 import copy
 import json
 import sys
+import threading
 import time
 import uuid
 from pathlib import Path
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone
+from itertools import product
 
-from core.crusoe_client import MODELS, USAGE, usage_summary
+from core.crusoe_client import MODELS, reset_usage, usage_summary
 
 from . import agents, db, rules
 
@@ -24,14 +26,24 @@ ID_PREFIX = {
     "kitchen_basics": "KITCH", "other": "ITEM",
 }
 OUTSIDE_BUYER = "walk-in buyer (outside CampusLoop)"
+_RUN_LOCK = threading.Lock()
 
 
-def run(on_event=None, simulate_outside_buyer=True, max_attempts=3, requests=None, listings=None):
+def run(on_event=None, simulate_outside_buyer=True, max_attempts=3, requests=None, listings=None, offline=False):
+    """Serialize runs so token accounting and the shared demo inventory snapshot cannot overlap."""
+    with _RUN_LOCK:
+        return _run_once(on_event, simulate_outside_buyer, max_attempts, requests, listings, offline)
+
+
+def _run_once(on_event=None, simulate_outside_buyer=True, max_attempts=3, requests=None, listings=None,
+              offline=False):
     """Run the whole agent team once. Returns the result dict described in docs/CONTRACT.md.
 
     `requests` / `listings` override the demo data (e.g. a student's custom kit request).
     """
-    USAGE.clear()
+    if max_attempts < 1:
+        raise ValueError("max_attempts must be at least 1")
+    reset_usage()
     started = time.time()
     started_at = _now()
     events = []
@@ -45,15 +57,19 @@ def run(on_event=None, simulate_outside_buyer=True, max_attempts=3, requests=Non
 
     inventory = {i["id"]: i for i in db.products()}
     requests = requests if requests is not None else rules.load("requests.json")
-    listings = listings if listings is not None else rules.load("intake.json")
+    listings = listings if listings is not None else ([] if offline else rules.load("intake.json"))
+    request_ids = [r["id"] for r in requests]
+    if len(request_ids) != len(set(request_ids)):
+        raise ValueError("request IDs must be unique")
     recalls = rules.recall_list()
 
     emit("Controller", "info",
          f"Goal: process {len(listings)} move-out listings and deliver verified kits to {len(requests)} "
          f"incoming students. Limits: {max_attempts} attempts per kit, {rules.MIN_MARGIN_PCT:.0f}% minimum margin.")
 
-    intake = _run_intake(listings, inventory, recalls, emit)
-    kits = _build_kits(requests, inventory, recalls, emit, simulate_outside_buyer, max_attempts)
+    intake = _run_intake(listings, inventory, recalls, emit) if not offline else []
+    kits = _build_kits(requests, inventory, recalls, emit, simulate_outside_buyer, max_attempts,
+                       use_models=not offline)
     audit_ok = _final_audit(kits, inventory, recalls, emit)
 
     verified = sum(k["status"] == "verified" for k in kits)
@@ -72,7 +88,7 @@ def run(on_event=None, simulate_outside_buyer=True, max_attempts=3, requests=Non
                   "rejected_attempts": [{"attempt": a["attempt"], "items": a["item_ids"], "why_rejected": a["issues"]}
                                         for a in k["history"] if not a["passed"]]} for k in kits],
     }
-    report = _report(summary, emit)
+    report = _report(summary, emit, use_model=not offline)
 
     escalated = len(kits) - verified
     emit("Controller", "done",
@@ -86,7 +102,7 @@ def run(on_event=None, simulate_outside_buyer=True, max_attempts=3, requests=Non
         "started_at": started_at,
         "finished_at": _now(),
         "duration_s": round(time.time() - started, 2),
-        "config": {"max_attempts": max_attempts, "min_margin_pct": rules.MIN_MARGIN_PCT,
+        "config": {"max_attempts": max_attempts, "min_margin_pct": rules.MIN_MARGIN_PCT, "offline": offline,
                    "simulate_outside_buyer": simulate_outside_buyer, "models": dict(MODELS)},
         "intake": intake,
         "kits": kits,
@@ -151,7 +167,7 @@ def _run_intake(listings, inventory, recalls, emit):
     return out
 
 
-def _build_kits(requests, inventory, recalls, emit, simulate_outside_buyer, max_attempts):
+def _build_kits(requests, inventory, recalls, emit, simulate_outside_buyer, max_attempts, use_models=True):
     kits = {r["id"]: {"request_id": r["id"], "buyer": r["buyer"], "profile": r["profile"],
                       "budget": float(r["budget"]), "needs": r["needs"],
                       "min_condition": r.get("min_condition"), "item_prefs": r.get("item_prefs") or {},
@@ -164,6 +180,8 @@ def _build_kits(requests, inventory, recalls, emit, simulate_outside_buyer, max_
 
     def plan_for(r, snapshot):
         # May run in a worker thread: must not emit events here.
+        if not use_models:
+            return _fallback_plan(r, snapshot)
         try:
             return agents.plan_kit(r, snapshot, feedback[r["id"]], shared_notes)
         except Exception as e:
@@ -171,15 +189,16 @@ def _build_kits(requests, inventory, recalls, emit, simulate_outside_buyer, max_
 
     def announce(r, plan):
         if plan.get("error"):
-            emit(f"Kit Agent · {r['buyer']}", "info", f"Model call failed ({plan['error']}); using the fallback planner")
+            emit(f"Kit Agent · {r['buyer']}", "info", f"Model call failed ({plan['error']}); using the fallback planner",
+                 buyer=r["buyer"], request_id=r["id"])
         ids = plan["item_ids"]
         price = sum(inventory[i]["resale_price"] for i in ids if i in inventory)
         emit(f"Kit Agent · {r['buyer']}", "plan", f"Proposes {', '.join(ids)} (${price:.0f}) · {plan['rationale']}",
-             item_ids=ids, buyer=r["buyer"])
+             item_ids=ids, buyer=r["buyer"], request_id=r["id"])
         for iid in ids:
             if iid in inventory:
                 emit("Inventory", "inventory_take", f"{r['buyer']} selects {iid} with photo {inventory[iid].get('photo') or '(none)'}",
-                     item_id=iid, buyer=r["buyer"], photo=inventory[iid].get("photo"))
+                     item_id=iid, buyer=r["buyer"], request_id=r["id"], photo=inventory[iid].get("photo"))
 
     def verify_and_commit(r, plan, last_try):
         """Verify one plan against live inventory; reserve on success. True when the kit is done."""
@@ -196,14 +215,14 @@ def _build_kits(requests, inventory, recalls, emit, simulate_outside_buyer, max_
             kit["status"] = "verified"
             emit("Verifier", "verify_pass",
                  f"{r['buyer']}'s kit passed all {len(checks)} checks: ${kit['price']:.0f}, margin {kit['margin_pct']:.0f}%",
-                 buyer=r["buyer"], item_ids=[i["id"] for i in items])
+                 buyer=r["buyer"], request_id=r["id"], item_ids=[i["id"] for i in items])
             emit("Controller", "reserve", f"Reserved {', '.join(i['id'] for i in items)} for {r['buyer']}",
-                 buyer=r["buyer"])
+                 buyer=r["buyer"], request_id=r["id"])
         else:
             conflict = any("already reserved" in x for x in issues)
             emit("Verifier", "conflict" if conflict else "verify_fail",
                  f"{r['buyer']}'s kit REJECTED: " + " | ".join(issues),
-                 buyer=r["buyer"], issues=issues)
+                 buyer=r["buyer"], request_id=r["id"], issues=issues)
             kit["status"] = "needs_approval" if soft_only else "failed"
             feedback[r["id"]] = issues
             for item in items:
@@ -214,7 +233,7 @@ def _build_kits(requests, inventory, recalls, emit, simulate_outside_buyer, max_
             if not last_try:
                 emit("Controller", "replan",
                      f"Not done yet: sending the Verifier's feedback back to Kit Agent · {r['buyer']} to replan",
-                     buyer=r["buyer"])
+                     buyer=r["buyer"], request_id=r["id"])
         kit["items"] = [copy.deepcopy(i) for i in items]
         return not issues
 
@@ -253,11 +272,11 @@ def _build_kits(requests, inventory, recalls, emit, simulate_outside_buyer, max_
         if kit["status"] == "needs_approval":
             emit("Controller", "escalate",
                  f"{r['buyer']}: out of attempts and the only issue is a small budget overrun; asking a human to approve",
-                 buyer=r["buyer"])
+                 buyer=r["buyer"], request_id=r["id"])
         else:
             emit("Controller", "escalate",
                  f"{r['buyer']}: still failing after {kit['attempts']} attempts; escalating to a human "
-                 "instead of shipping a bad kit", buyer=r["buyer"])
+                 "instead of shipping a bad kit", buyer=r["buyer"], request_id=r["id"])
     return list(kits.values())
 
 
@@ -267,15 +286,30 @@ def _final_audit(kits, inventory, recalls, emit):
     for kit in kits:
         if kit["status"] != "verified":
             continue
+        expected_owner = f"{kit['buyer']} ({kit['request_id']})"
+        item_ids = [item["id"] for item in kit["items"]]
         for item in kit["items"]:
-            live = inventory[item["id"]]
+            live = inventory.get(item["id"])
+            if not live:
+                problems.append(f"{item['id']} disappeared from live inventory")
+                continue
             if item["id"] in seen:
                 problems.append(f"{item['id']} is in two kits ({seen[item['id']]} and {kit['buyer']})")
             seen[item["id"]] = kit["buyer"]
-            if kit["request_id"] not in (live["reserved_for"] or ""):
+            if live.get("status") != "reserved" or live.get("reserved_for") != expected_owner:
                 problems.append(f"{item['id']} is not reserved for {kit['buyer']}")
             if rules.recall_reason(live["model"], recalls):
                 problems.append(f"{item['id']} is a recalled model")
+        audit_inventory = {key: copy.deepcopy(value) for key, value in inventory.items()}
+        for item_id in item_ids:
+            if item_id in audit_inventory:
+                audit_inventory[item_id]["status"] = "available"
+                audit_inventory[item_id]["reserved_for"] = None
+        request = {"id": kit["request_id"], "buyer": kit["buyer"], "budget": kit["budget"],
+                   "needs": kit["needs"], "min_condition": kit.get("min_condition"),
+                   "item_prefs": kit.get("item_prefs") or {}}
+        _, issues, _ = rules.verify_kit(request, item_ids, audit_inventory, recalls)
+        problems.extend(f"{kit['buyer']}: {issue}" for issue in issues)
     verified = sum(k["status"] == "verified" for k in kits)
     if problems:
         emit("Verifier", "verify_fail", "Final audit FAILED: " + " | ".join(problems))
@@ -286,7 +320,7 @@ def _final_audit(kits, inventory, recalls, emit):
     return True
 
 
-def _report(summary, emit):
+def _report(summary, emit, use_model=True):
     """Facts (verdict, table) come from code; the Reporter agent only narrates what was caught."""
     kits = summary["kits"]
     verified = sum(k["status"] == "verified" for k in kits)
@@ -303,11 +337,12 @@ def _report(summary, emit):
     blocked = [i for i in summary["intake"] if not i["accepted"]]
     if blocked:
         lines += ["", "**Blocked at intake:** " + "; ".join(f"{i['listing']}: {i['reason']}" for i in blocked)]
-    try:
-        narrative = agents.write_report(summary)
-    except agents.AgentError as e:
-        emit("Reporter", "info", f"Model call failed ({e}); report without narrative")
-        narrative = ""
+    narrative = ""
+    if use_model:
+        try:
+            narrative = agents.write_report(summary)
+        except agents.AgentError as e:
+            emit("Reporter", "info", f"Model call failed ({e}); report without narrative")
     if narrative:
         lines += ["", "**What the agents caught and fixed**", "", narrative]
     emit("Reporter", "info", "Done Report written")
@@ -327,24 +362,51 @@ def _outside_buyer(plans, inventory):
 
 
 def _fallback_plan(request, snapshot):
-    """Plan used only when the model call fails: per needed category, a safe item that meets the minimum quality,
-    preferring the student's color/style, then better condition, then the higher price."""
+    """Deterministic recovery planner that optimizes complete, valid combinations."""
     recalls = rules.recall_list()
-    ids = []
-    for need in request["needs"]:
+    needs = list(dict.fromkeys(request["needs"]))
+    choices = []
+    for need in needs:
         min_rank = rules.QUALITY_RANK.get(rules.min_quality_for(request, need), 0)
-        look = (request.get("item_prefs") or {}).get(need, {})
-        colors = [look["color"]] if look.get("color") else request.get("colors") or []
-        style = look.get("style") or request.get("style")
         options = [i for i in snapshot if i["category"] == need
                    and rules.QUALITY_RANK.get(i["condition"], 0) >= min_rank
                    and not rules.recall_reason(i.get("model"), recalls)]
-        if options:
-            best = max(options, key=lambda i: ((i.get("color") in colors) + (i.get("style") == style),
-                                               rules.QUALITY_RANK.get(i["condition"], 0), i["resale_price"]))
-            ids.append(best["id"])
-    return {"item_ids": ids, "rationale": "Fallback plan (model unavailable): safe items that meet your quality, "
-                                          "closest to your colors and style."}
+        choices.append(options)
+
+    def preference_score(items):
+        matches, quality = 0, 0
+        for item in items:
+            look = (request.get("item_prefs") or {}).get(item["category"], {})
+            colors = [look["color"]] if look.get("color") else request.get("colors") or []
+            style = look.get("style") or request.get("style")
+            matches += int(bool(colors) and item.get("color") in colors)
+            matches += int(bool(style) and item.get("style") == style)
+            quality += rules.QUALITY_RANK.get(item["condition"], 0)
+        return matches, quality
+
+    combinations = list(product(*choices)) if choices and all(choices) else []
+    inventory = {item["id"]: item for item in snapshot}
+    valid, closest = [], []
+    for combo in combinations:
+        ids = [item["id"] for item in combo]
+        _, issues, _ = rules.verify_kit(request, ids, inventory, recalls)
+        matches, quality = preference_score(combo)
+        totals = rules.kit_totals(combo)
+        if not issues:
+            valid.append(((matches, quality, -totals["price"]), ids))
+        closest.append(((len(issues), max(0, totals["price"] - request["budget"]),
+                         max(0, rules.MIN_MARGIN_PCT - totals["margin_pct"]), -matches, -quality), ids))
+    if valid:
+        ids = max(valid, key=lambda entry: entry[0])[1]
+    elif closest:
+        ids = min(closest, key=lambda entry: entry[0])[1]
+    else:
+        ids = []
+        for options in choices:
+            if options:
+                ids.append(max(options, key=lambda item: preference_score([item]))["id"])
+    return {"item_ids": ids, "rationale": "Deterministic recovery plan: safe inventory that best fits quality, "
+                                          "preferences, budget and margin."}
 
 
 def _parallel(fn, args):
@@ -354,13 +416,14 @@ def _parallel(fn, args):
             return fn(a)
         except Exception as e:
             return e
-    with ThreadPoolExecutor(max_workers=max(1, len(args))) as pool:
+    with ThreadPoolExecutor(max_workers=max(1, min(16, len(args)))) as pool:
         return list(pool.map(safe, args))
 
 
 def _new_id(category, inventory):
     prefix = ID_PREFIX.get(category, "ITEM")
-    nums = [int(i.split("-")[1]) for i in inventory if i.startswith(prefix + "-")]
+    suffixes = [i.removeprefix(prefix + "-") for i in inventory if i.startswith(prefix + "-")]
+    nums = [int(suffix) for suffix in suffixes if suffix.isdigit()]
     return f"{prefix}-{max(nums, default=0) + 1:02d}"
 
 

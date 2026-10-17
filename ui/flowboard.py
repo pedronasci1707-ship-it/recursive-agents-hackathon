@@ -135,7 +135,7 @@ def storyboard(res):
 
     for i, e in enumerate(events):
         a, k, m, t = e["agent"], e["kind"], e["message"], e["ts"]
-        tok = by_buyer.get(e["data"].get("buyer"))
+        tok = e["data"].get("request_id") or by_buyer.get(e["data"].get("buyer"))
         if k == "photo_received":
             lid = e["data"].get("listing_id")
             if lid in pos:
@@ -227,7 +227,8 @@ def storyboard(res):
     history = {}
     for kit in kits:
         lines = [{"t": e["ts"], "agent": disp(e["agent"]), "msg": disp(e["message"]), "kind": e["kind"]}
-                 for e in events if e["data"].get("buyer") == kit["buyer"]]
+                 for e in events if e["data"].get("request_id") == kit["request_id"]
+                 or (not e["data"].get("request_id") and e["data"].get("buyer") == kit["buyer"])]
         history[kit["request_id"]] = {"name": kit["buyer"], "status": kit["status"], "attempts": kit["attempts"],
                                       "price": kit["price"], "items": [i["name"] for i in kit["items"]], "lines": lines}
     for entry in res["intake"]:

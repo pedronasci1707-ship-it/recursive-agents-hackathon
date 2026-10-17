@@ -10,6 +10,14 @@ from campusloop import db, rules
 RECALLS = rules.recall_list()
 
 
+def reservation_tag(kit):
+    return f"{kit['buyer']} ({kit['request_id']})"
+
+
+def _owned_by(live, kit):
+    return bool(live) and live.get("status") == "reserved" and live.get("reserved_for") == reservation_tag(kit)
+
+
 def inventory(res):
     """Live inventory objects of the run (mutations persist in the session's result)."""
     return {i["id"]: i for i in res["inventory"]}
@@ -62,24 +70,29 @@ def change_kit(res, kit, new_ids):
     known = {i["id"] for i in res["inventory"]}
     res["inventory"] += [i for i in db.products() if i["id"] in new_ids and i["id"] not in known]
     inv = inventory(res)
-    tag = f"{kit['buyer']} ({kit['request_id']})"
+    tag = reservation_tag(kit)
     current = [i["id"] for i in kit["items"]]
+    released = {}
     for iid in current:
-        inv[iid]["status"], inv[iid]["reserved_for"] = "available", None
+        live = inv.get(iid)
+        if _owned_by(live, kit):
+            released[iid] = (live["status"], live["reserved_for"])
+            live["status"], live["reserved_for"] = "available", None
     request = {"id": kit["request_id"], "buyer": kit["buyer"], "budget": kit["budget"],
                "needs": kit["needs"], "min_condition": kit.get("min_condition"),
                "item_prefs": kit.get("item_prefs") or {}}
     checks, issues, _ = rules.verify_kit(request, new_ids, inv, RECALLS)
     if issues:
-        for iid in current:
-            inv[iid]["status"], inv[iid]["reserved_for"] = "reserved", tag
+        for iid, old in released.items():
+            inv[iid]["status"], inv[iid]["reserved_for"] = old
         return False, friendly(issues, kit["budget"])
     for iid in new_ids:
         inv[iid]["status"], inv[iid]["reserved_for"] = "reserved", tag
     items = [copy.deepcopy(inv[i]) for i in new_ids]
     kit.update(items=items, checks=checks, status="verified", **rules.kit_totals(items))
-    kit["history"].append({"attempt": len(kit["history"]) + 1, "item_ids": new_ids, "passed": True,
-                           "issues": [], "by": "customer"})
+    history = kit.setdefault("history", [])
+    history.append({"attempt": len(history) + 1, "item_ids": new_ids, "passed": True,
+                    "issues": [], "by": "customer"})
     return True, []
 
 
@@ -90,7 +103,7 @@ def final_check(res, kit):
     problems = []
     for item in kit["items"]:
         live = inv.get(item["id"])
-        if not live or live.get("status") != "reserved" or kit["request_id"] not in (live.get("reserved_for") or ""):
+        if not _owned_by(live, kit):
             problems.append(f"{item['name']} is no longer reserved for you.")
         elif not is_safe(live):
             problems.append(f"{item['name']} didn't pass our safety checks.")
@@ -101,8 +114,7 @@ def is_held(res, kit):
     """True while every item of the kit is still reserved for this student."""
     inv = inventory(res)
     return bool(kit["items"]) and all(
-        inv.get(i["id"], {}).get("status") == "reserved"
-        and kit["request_id"] in (inv[i["id"]].get("reserved_for") or "") for i in kit["items"])
+        _owned_by(inv.get(i["id"]), kit) for i in kit["items"])
 
 
 def release(res, kit):
@@ -110,7 +122,7 @@ def release(res, kit):
     inv = inventory(res)
     for item in kit["items"]:
         live = inv.get(item["id"])
-        if live and live["status"] == "reserved" and kit["request_id"] in (live.get("reserved_for") or ""):
+        if _owned_by(live, kit):
             live["status"], live["reserved_for"] = "available", None
 
 
@@ -118,10 +130,10 @@ def hold_again(res, kit):
     """Re-reserve the same items after a hold ended, only if each one is still free (never takes another
     student's item). Returns (ok, messages)."""
     inv = inventory(res)
-    tag = f"{kit['buyer']} ({kit['request_id']})"
+    tag = reservation_tag(kit)
     taken = [i["name"] for i in kit["items"]
              if not (live := inv.get(i["id"])) or not is_safe(live)
-             or (live["status"] != "available" and kit["request_id"] not in (live.get("reserved_for") or ""))]
+             or (live["status"] != "available" and not _owned_by(live, kit))]
     if taken:
         return False, [f"{name} was just taken by someone else." for name in taken]
     for item in kit["items"]:
@@ -133,8 +145,9 @@ def mark_sold(res, kit):
     """Paid: the items leave the shop for good."""
     inv = inventory(res)
     for item in kit["items"]:
-        if item["id"] in inv:
-            inv[item["id"]]["status"] = "sold"
+        live = inv.get(item["id"])
+        if _owned_by(live, kit):
+            live["status"], live["reserved_for"] = "sold", None
 
 
 def swap(res, kit, old_id, new_id):

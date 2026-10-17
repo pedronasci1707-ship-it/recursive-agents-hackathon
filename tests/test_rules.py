@@ -83,6 +83,24 @@ def test_fallback_plan_skips_recalls_and_respects_item_prefs():
     assert ids == ["FRIDGE-01", "CHAIR-02"]   # FRIDGE-03 is also A but recalled; CHAIR-02 is the blue one
 
 
+def test_fallback_plan_chooses_a_complete_combination_that_fits_budget():
+    from campusloop.engine import _fallback_plan
+
+    def choice(item_id, category, price):
+        return {"id": item_id, "name": item_id, "category": category, "condition": "A", "model": "OK",
+                "color": "black", "style": "modern", "acquisition_cost": 5, "refurb_cost": 2,
+                "resale_price": price, "status": "available", "reserved_for": None}
+
+    snapshot = [choice("F-HIGH", "mini_fridge", 80), choice("F-LOW", "mini_fridge", 40),
+                choice("L-HIGH", "desk_lamp", 50), choice("L-LOW", "desk_lamp", 30)]
+    request = {**REQ, "budget": 100}
+    ids = _fallback_plan(request, snapshot)["item_ids"]
+    inventory = {item["id"]: item for item in snapshot}
+    _, issues, _ = rules.verify_kit(request, ids, inventory, RECALLS)
+    assert issues == []
+    assert ids == ["F-LOW", "L-LOW"]
+
+
 def test_price_listing_scales_with_condition():
     a, b = rules.price_listing("mini_fridge", "A"), rules.price_listing("mini_fridge", "B")
     assert a["resale_price"] > b["resale_price"] > 0

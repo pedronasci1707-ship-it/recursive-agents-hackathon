@@ -1,6 +1,8 @@
 """Session state, demo accounts and how the UI runs the agents."""
 
+import hashlib
 import json
+import threading
 import time
 from pathlib import Path
 
@@ -55,7 +57,9 @@ def register(name, email, role):
     """Create a session-only account. A new incoming student also gets their own kit request."""
     acct = {"name": name, "role": role}
     if role == "student":
-        rid = f"REQ-{abs(hash(email)) % 100000:05d}"
+        # Python's hash() changes after every process restart. A stable digest keeps
+        # session data internally consistent and makes collisions with demo IDs negligible.
+        rid = "REQ-U" + hashlib.sha256(email.encode("utf-8")).hexdigest()[:10].upper()
         acct["request_id"] = rid
         st.session_state.setdefault("my_requests", {})[rid] = {
             "id": rid, "buyer": name, "profile": "Incoming student", "budget": 200,
@@ -86,47 +90,81 @@ def has_api_key():
 
 
 @st.cache_resource
-def _live_gate():
-    return {"last": 0.0, "runs": 0}
+def _live_gates():
+    return {"lock": threading.Lock(), "channels": {}}
 
 
-def claim_live_run():
-    """Rate-limit live runs across all visitors of the public site. Returns an error message or None."""
-    gate, now = _live_gate(), time.time()
-    if gate["runs"] >= LIVE_MAX_RUNS:
-        return "The live demo reached its run limit. Showing the recorded run instead."
-    if now - gate["last"] < LIVE_COOLDOWN_S:
-        return f"Another live run just happened. Try again in {LIVE_COOLDOWN_S - int(now - gate['last'])}s."
-    gate["last"], gate["runs"] = now, gate["runs"] + 1
+def claim_live_run(channel="agents", cooldown_s=LIVE_COOLDOWN_S, max_runs=LIVE_MAX_RUNS):
+    """Atomically rate-limit a live API action across every visitor and mark it active."""
+    gates, now = _live_gates(), time.time()
+    with gates["lock"]:
+        gate = gates["channels"].setdefault(channel, {"last": 0.0, "runs": 0, "active": False})
+        if gate["active"]:
+            return "Another live run is still working. Try again when it finishes."
+        if gate["runs"] >= max_runs:
+            return "The live demo reached its run limit. Showing the safe local fallback instead."
+        remaining = cooldown_s - (now - gate["last"])
+        if remaining > 0:
+            return f"Another live run just happened. Try again in {max(1, int(remaining + 0.999))}s."
+        gate.update(last=now, runs=gate["runs"] + 1, active=True)
     return None
 
 
-def run_agents(on_event, live, chaos=True, max_attempts=3, speed=2.0, custom_request=None, scenario=None):
+def finish_live_run(channel="agents"):
+    """Release a live API action even when its caller failed."""
+    gates = _live_gates()
+    with gates["lock"]:
+        if channel in gates["channels"]:
+            gates["channels"][channel]["active"] = False
+
+
+def run_agents(on_event, live, chaos=True, max_attempts=3, speed=2.0, custom_request=None, scenario=None,
+               requests_override=None, listings_override=None):
     """Run the real agents (live) or replay the recorded sample run with its original pacing.
 
     `custom_request` replaces the demo request with the same id (a student's own kit request).
     `scenario` picks one of SCENARIOS (admin views); defaults to the one chosen in the sidebar.
     """
-    _, sample_path, transform = SCENARIOS[scenario or st.session_state.get("scenario", "standard")]
+    scenario_key = scenario or st.session_state.get("scenario", "standard")
+    scenario_key = scenario_key if scenario_key in SCENARIOS else "standard"
+    _, sample_path, transform = SCENARIOS[scenario_key]
+    claimed = False
     if live and (blocked := claim_live_run()):
         st.toast(blocked)
         live = False
+    elif live:
+        claimed = True
     if live:
         from campusloop.engine import run
-        reqs = transform(requests()) if transform else requests()
+        reqs = list(requests_override) if requests_override is not None else requests()
+        reqs = transform(reqs) if transform else reqs
         if custom_request:
             reqs = [custom_request if r["id"] == custom_request["id"] else r for r in reqs]
             if all(r["id"] != custom_request["id"] for r in reqs):  # a newly created student account
                 reqs.append(custom_request)
-        res = run(on_event=on_event, simulate_outside_buyer=chaos, max_attempts=max_attempts, requests=reqs)
-        st.session_state.source = "live run on Crusoe"
+        try:
+            res = run(on_event=on_event, simulate_outside_buyer=chaos, max_attempts=max_attempts,
+                      requests=reqs, listings=listings_override)
+            st.session_state.source = "live run on Crusoe"
+        finally:
+            if claimed:
+                finish_live_run()
+    elif custom_request or requests_override is not None:
+        # Recorded runs contain only the three demo students. A deterministic local run
+        # keeps custom accounts and changed preferences functional without spending API credits.
+        from campusloop.engine import run
+        reqs = list(requests_override) if requests_override is not None else [custom_request]
+        res = run(on_event=on_event, simulate_outside_buyer=chaos, max_attempts=max_attempts,
+                  requests=reqs, listings=[], offline=True)
+        st.session_state.source = "local deterministic fallback"
     else:
         res = json.loads(sample_path.read_text(encoding="utf-8"))
         last = 0.0
         for event in res["events"]:
-            time.sleep(min(max(event["ts"] - last, 0.15), 3.0) / speed)
+            time.sleep(min(max(event["ts"] - last, 0.15), 3.0) / max(float(speed), 0.1))
             last = event["ts"]
-            on_event(event)
+            if on_event:
+                on_event(event)
         st.session_state.source = "recorded run"
     st.session_state.result = res
     return res

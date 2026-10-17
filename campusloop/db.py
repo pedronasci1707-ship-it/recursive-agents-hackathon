@@ -28,25 +28,40 @@ def _connect():
     con.row_factory = sqlite3.Row
     if str(DB_PATH) not in _ready:
         with _lock:
-            con.execute(f"CREATE TABLE IF NOT EXISTS products ({', '.join(f + ' TEXT' for f in FIELDS)}, "
-                        "PRIMARY KEY (id))")
-            _seed(con)
-            _ready.add(str(DB_PATH))
+            if str(DB_PATH) not in _ready:
+                con.execute(f"CREATE TABLE IF NOT EXISTS products ({', '.join(f + ' TEXT' for f in FIELDS)}, "
+                            "PRIMARY KEY (id))")
+                existing = {row[1] for row in con.execute("PRAGMA table_info(products)")}
+                for field in FIELDS:
+                    if field not in existing:
+                        con.execute(f"ALTER TABLE products ADD COLUMN {field} TEXT")
+                _seed(con)
+                _ready.add(str(DB_PATH))
     return con
 
 
 def _seed(con):
-    """Add missing demo stock without undoing reservations from a previous process."""
+    """Add/update demo stock without undoing live reservation fields."""
     for item in rules.load("catalog.json"):
         photo = f"products/{item['id']}.jpg" if (STATIC / "products" / f"{item['id']}.jpg").exists() else ""
         score = item.get("quality_score") or {"A": 9, "B": 7, "C": 4}.get(item["condition"])
-        _write(con, {**item, "quality_score": score, "photo": photo, "source": "catalog"}, replace=False)
+        seeded = {**item, "quality_score": score, "photo": photo, "source": "catalog"}
+        _write(con, seeded, replace=False)
+        mutable = [field for field in FIELDS if field not in {"id", "status", "reserved_for"}]
+        row = _serialize(seeded)
+        con.execute(f"UPDATE products SET {', '.join(field + ' = ?' for field in mutable)} WHERE id = ?",
+                    [row[field] for field in mutable] + [seeded["id"]])
     con.commit()
 
 
-def _write(con, item, replace=True):
+def _serialize(item):
     row = {f: item.get(f) for f in FIELDS}
     row["defects"] = json.dumps(item.get("defects") or [])
+    return row
+
+
+def _write(con, item, replace=True):
+    row = _serialize(item)
     mode = "REPLACE" if replace else "IGNORE"
     con.execute(f"INSERT OR {mode} INTO products ({', '.join(FIELDS)}) VALUES ({', '.join('?' * len(FIELDS))})",
                 [row[f] for f in FIELDS])
@@ -55,9 +70,20 @@ def _write(con, item, replace=True):
 def _row(r):
     item = dict(r)
     for f in ("acquisition_cost", "refurb_cost", "resale_price"):
-        item[f] = float(item[f]) if item[f] not in (None, "") else 0.0
-    item["quality_score"] = int(item["quality_score"]) if item["quality_score"] not in (None, "") else None
-    item["defects"] = json.loads(item["defects"] or "[]")
+        try:
+            item[f] = float(item.get(f)) if item.get(f) not in (None, "") else 0.0
+        except (TypeError, ValueError):
+            item[f] = 0.0
+    try:
+        item["quality_score"] = int(item.get("quality_score")) if item.get("quality_score") not in (None, "") else None
+    except (TypeError, ValueError):
+        item["quality_score"] = None
+    try:
+        item["defects"] = json.loads(item.get("defects") or "[]")
+    except (json.JSONDecodeError, TypeError):
+        item["defects"] = []
+    if not isinstance(item["defects"], list):
+        item["defects"] = []
     item["reserved_for"] = item["reserved_for"] or None
     return item
 
@@ -73,16 +99,23 @@ def add_product(item, photo_bytes=None, ext="jpg"):
     ext = ext.lower()
     if ext not in {"jpg", "jpeg", "png", "webp"} or not photo_bytes or len(photo_bytes) > 10_000_000:
         raise ValueError("A JPG, PNG or WebP product photo (up to 10 MB) is required")
-    with _connect() as con:
-        con.execute("BEGIN IMMEDIATE")
-        prefix = item["id"].split("-")[0] if item.get("id") else "ITEM"
-        nums = [int(r[0].split("-")[1]) for r in con.execute("SELECT id FROM products WHERE id LIKE ?", (prefix + "-%",))
-                if r[0].split("-")[1].isdigit()]
-        item = {**item, "id": f"{prefix}-{max(nums, default=0) + 1:02d}", "status": "available",
-                "reserved_for": None, "source": "seller"}
-        (STATIC / "uploads").mkdir(parents=True, exist_ok=True)
-        (STATIC / "uploads" / f"{item['id']}.{ext}").write_bytes(photo_bytes)
-        item["photo"] = f"uploads/{item['id']}.{ext}"
-        _write(con, item)
-        con.commit()
+    photo_path = None
+    try:
+        with _connect() as con:
+            con.execute("BEGIN IMMEDIATE")
+            prefix = item["id"].split("-")[0] if item.get("id") else "ITEM"
+            nums = [int(r[0].split("-")[1]) for r in con.execute(
+                "SELECT id FROM products WHERE id LIKE ?", (prefix + "-%",)) if r[0].split("-")[1].isdigit()]
+            item = {**item, "id": f"{prefix}-{max(nums, default=0) + 1:02d}", "status": "available",
+                    "reserved_for": None, "source": "seller"}
+            (STATIC / "uploads").mkdir(parents=True, exist_ok=True)
+            photo_path = STATIC / "uploads" / f"{item['id']}.{ext}"
+            photo_path.write_bytes(photo_bytes)
+            item["photo"] = f"uploads/{item['id']}.{ext}"
+            _write(con, item)
+            con.commit()
+    except Exception:
+        if photo_path and photo_path.exists():
+            photo_path.unlink()
+        raise
     return item

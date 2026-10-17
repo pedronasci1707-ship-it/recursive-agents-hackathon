@@ -34,7 +34,7 @@ result = json.load(open("demo/sample_run.json", encoding="utf-8"))
 | `status` | str | `"done"` (every kit verified) · `"done_with_escalations"` (some kits need a human) · `"failed"` |
 | `started_at`, `finished_at` | str | ISO timestamps |
 | `duration_s` | float | Wall-clock duration |
-| `config` | dict | `max_attempts`, `min_margin_pct`, `simulate_outside_buyer`, `models` |
+| `config` | dict | `max_attempts`, `min_margin_pct`, `simulate_outside_buyer`, `offline`, `models` |
 | `intake` | list[Intake] | Move-out listings processed by the Intake Agent |
 | `kits` | list[Kit] | One per buyer request |
 | `events` | list[Event] | Full timeline, in order |
@@ -73,7 +73,7 @@ when the listing is rejected; `item` is set only when accepted.
 - `agent`: `"Controller"`, `"Intake Agent"`, `"Kit Agent · Ana"`, `"Verifier"`, `"Outside world"`, `"Reporter"`
 - `kind`: `info` · `photo_received` · `inventory_add` · `inventory_take` · `intake` · `plan` · `verify_pass` · `verify_fail` · `conflict` · `replan` · `reserve` · `escalate` · `done`
 - `message`: one human-readable line (show it as-is)
-- `data`: optional extra fields (dict). Events about one student carry `buyer`; proposals and passes carry
+- `data`: optional extra fields (dict). Events about one student carry `buyer` and `request_id`; proposals and passes carry
   `item_ids`; rejections carry `issues`; photo events carry `listing_id`, `item_id` and/or `photo`; accepted listings
   carry `item` (`id`, `name`, `category`, `resale_price`); the outside buyer carries `item_id`.
 

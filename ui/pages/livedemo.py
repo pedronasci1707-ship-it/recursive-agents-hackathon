@@ -4,6 +4,7 @@
 4 a student's request -> 5 the agent team builds and verifies a kit live -> 6 the kit, with product photos.
 """
 
+import hashlib
 from pathlib import Path
 
 import streamlit as st
@@ -11,6 +12,7 @@ import streamlit as st
 from campusloop import agents, db, engine, rules
 from core.crusoe_client import MODELS
 from ui import components as c
+from ui import state
 
 STATIC = Path(__file__).resolve().parents[2] / "static"
 SAMPLES = {  # photos that ship with the repo, for a quick demo without your own picture
@@ -54,24 +56,35 @@ elif pick in SAMPLES:
     image, mime, ext = path.read_bytes(), "image/jpeg", "jpg"
 else:
     image = None
+input_sig = hashlib.sha256((image or b"") + b"\0" + text.encode("utf-8")).hexdigest()
+if ss.get("ld_input_sig") != input_sig:
+    for key in ("ld_parsed", "ld_photo", "ld_saved"):
+        ss.pop(key, None)
+ss.ld_input_sig = input_sig
 with prev_col:
     if image:
         st.image(image, width=260)
 
 # ---------------------------------------------------------------- 2. listing reader
 step(2, "The Listing Reader grades the item", "Listing Reader", MODELS["vision"])
-if st.button("Run the Listing Reader", type="primary", icon=":material/visibility:", disabled=not image):
+if st.button("Run the Listing Reader", type="primary", icon=":material/visibility:",
+             disabled=not image or not state.has_api_key()):
     with st.spinner("Looking at the photo on Crusoe…"):
-        try:
-            parsed = agents.intake_listing({"seller": "Demo seller", "text": text}, image=image, mime=mime)
-            ss.ld_parsed, ss.ld_photo = parsed, (image, ext)
-            ss.pop("ld_saved", None)
-        except agents.AgentError as e:
-            st.error(f"The model call failed ({e}). Wait a few seconds and try again.")
+        if blocked := state.claim_live_run("vision", cooldown_s=5):
+            st.warning(blocked)
+        else:
+            try:
+                parsed = agents.intake_listing({"seller": "Demo seller", "text": text}, image=image, mime=mime)
+                ss.ld_parsed, ss.ld_photo = parsed, (image, ext)
+                ss.pop("ld_saved", None)
+            except agents.AgentError as e:
+                st.error(f"The model call failed ({e}). Wait a few seconds and try again.")
+            finally:
+                state.finish_live_run("vision")
 parsed = ss.get("ld_parsed")
 if parsed:
     recall = rules.recall_reason(parsed.get("model"), rules.recall_list())
-    price = rules.price_listing(parsed["category"], parsed["condition"])
+    price = rules.price_listing(parsed["category"], parsed["condition"], parsed.get("quality_score"))
     a, b = st.columns([1.3, 1], gap="large")
     with a:
         st.json({k: parsed.get(k) for k in ("name", "category", "condition", "quality_score", "defects",
@@ -96,7 +109,10 @@ if parsed:
                     "condition": parsed["condition"], "quality_score": parsed.get("quality_score"),
                     "defects": parsed.get("defects", []), "model": parsed.get("model") or "",
                     "color": parsed.get("color", "other"), "style": parsed.get("style", "minimal"), **price}
-            ss.ld_saved = db.add_product(item, photo_bytes=img, ext=ext)
+            try:
+                ss.ld_saved = db.add_product(item, photo_bytes=img, ext=ext)
+            except (OSError, ValueError) as error:
+                st.error(f"The repository could not save this item: {error}")
         if ss.get("ld_saved"):
             st.success(f"Saved as **{ss.ld_saved['id']}**, with its photo. The agents can now use it.")
 
@@ -116,11 +132,15 @@ budget = r2.number_input("Budget ($)", 50, 500, 200, step=10)
 min_q = r3.segmented_control("Minimum quality", ["C", "B", "A"], default="B",
                              format_func=lambda q: c.CONDITION[q] + ("+" if q != "A" else ""))
 chaos = st.toggle("Simulate an outside buyer taking an item mid-run", value=True)
+request_sig = (tuple(needs or []), int(budget), min_q or "C", bool(chaos))
+if ss.get("ld_request_sig") != request_sig:
+    ss.pop("ld_result", None)
 
 # ---------------------------------------------------------------- 5. agent team
 step(5, "The agent team builds and verifies the kit", "Coordinator → Kit Builder → Quality Checker",
      MODELS["planner"])
-if st.button("Run the agent team", type="primary", icon=":material/bolt:", disabled=not needs):
+if st.button("Run the agent team", type="primary", icon=":material/bolt:",
+             disabled=not needs or not state.has_api_key()):
     request = {"id": "REQ-LIVE", "buyer": "Sam", "profile": "Incoming student (live demo)", "budget": budget,
                "needs": list(needs), "min_condition": min_q or "C"}
     feed, seen = st.empty(), []
@@ -129,10 +149,17 @@ if st.button("Run the agent team", type="primary", icon=":material/bolt:", disab
         seen.append(e)
         feed.html(c.timeline_html(list(reversed(seen))))
 
-    with st.status("Agents working on Crusoe…", expanded=True):
-        ss.ld_result = engine.run(on_event=on_event, simulate_outside_buyer=chaos, max_attempts=3,
-                                  requests=[request], listings=[])
-    st.rerun()
+    if blocked := state.claim_live_run():
+        st.warning(blocked)
+    else:
+        try:
+            with st.status("Agents working on Crusoe…", expanded=True):
+                ss.ld_result = engine.run(on_event=on_event, simulate_outside_buyer=chaos, max_attempts=3,
+                                          requests=[request], listings=[])
+                ss.ld_request_sig = request_sig
+            st.rerun()
+        finally:
+            state.finish_live_run()
 
 res = ss.get("ld_result")
 if res:

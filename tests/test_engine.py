@@ -108,3 +108,34 @@ def test_broken_photo_result_never_enters_inventory(offline, monkeypatch):
     result = engine.run(requests=[], simulate_outside_buyer=False)
     assert all(not entry["accepted"] for entry in result["intake"])
     assert all(entry["item"] is None for entry in result["intake"])
+
+
+def test_offline_run_is_personalized_and_never_calls_models(monkeypatch):
+    monkeypatch.setattr(agents, "plan_kit", lambda *a, **k: pytest.fail("model planner called"))
+    monkeypatch.setattr(agents, "write_report", lambda *a, **k: pytest.fail("reporter called"))
+    request = {"id": "REQ-CUSTOM", "buyer": "Sam", "profile": "Incoming student", "budget": 200,
+               "needs": ["mini_fridge", "desk_lamp"], "min_condition": "B"}
+    result = engine.run(requests=[request], listings=[], offline=True, simulate_outside_buyer=False)
+    assert result["config"]["offline"] is True
+    assert result["kits"][0]["request_id"] == "REQ-CUSTOM"
+    assert result["kits"][0]["status"] == "verified"
+    assert result["usage"] == {}
+
+
+def test_final_audit_rejects_an_item_that_is_not_actually_reserved():
+    item = {"id": "F", "name": "Fridge", "category": "mini_fridge", "condition": "A", "model": "OK",
+            "acquisition_cost": 10, "refurb_cost": 5, "resale_price": 100,
+            "status": "available", "reserved_for": "Ana (REQ-1)"}
+    kit = {"request_id": "REQ-1", "buyer": "Ana", "budget": 120, "needs": ["mini_fridge"],
+           "min_condition": None, "item_prefs": {}, "status": "verified", "items": [item.copy()]}
+    events = []
+    assert not engine._final_audit([kit], {"F": item}, {}, lambda *args, **kwargs: events.append(args))
+    assert "not reserved" in events[-1][2]
+
+
+def test_run_rejects_invalid_limits_and_duplicate_requests():
+    with pytest.raises(ValueError, match="max_attempts"):
+        engine.run(max_attempts=0, offline=True)
+    request = {"id": "DUP", "buyer": "A", "profile": "", "budget": 100, "needs": []}
+    with pytest.raises(ValueError, match="unique"):
+        engine.run(requests=[request, {**request, "buyer": "B"}], listings=[], offline=True)

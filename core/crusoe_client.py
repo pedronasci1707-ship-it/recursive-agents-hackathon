@@ -6,6 +6,7 @@ and token accounting live in one place.
 
 import os
 import random
+import threading
 import time
 from collections import defaultdict
 from functools import lru_cache
@@ -35,6 +36,7 @@ MODELS = {
 
 # Running totals per model: prompt / completion / cached tokens and request count.
 USAGE = defaultdict(lambda: {"requests": 0, "prompt": 0, "completion": 0, "cached": 0})
+USAGE_LOCK = threading.Lock()
 
 RETRYABLE = (RateLimitError, InternalServerError, APIConnectionError, APITimeoutError)
 
@@ -90,18 +92,25 @@ def text(resp):
 
 def usage_summary():
     """Per-model totals plus prefix-cache hit rate, handy for the demo."""
-    summary = {}
-    for model, u in USAGE.items():
-        hit = u["cached"] / u["prompt"] if u["prompt"] else 0.0
-        summary[model] = {**u, "cache_hit_rate": round(hit, 3)}
+    with USAGE_LOCK:
+        summary = {}
+        for model, usage in USAGE.items():
+            hit = usage["cached"] / usage["prompt"] if usage["prompt"] else 0.0
+            summary[model] = {**usage, "cache_hit_rate": round(hit, 3)}
     return summary
 
 
+def reset_usage():
+    with USAGE_LOCK:
+        USAGE.clear()
+
+
 def _record_usage(model, resp):
-    u = USAGE[model]
-    u["requests"] += 1
-    if resp.usage:
-        u["prompt"] += resp.usage.prompt_tokens or 0
-        u["completion"] += resp.usage.completion_tokens or 0
-        details = resp.usage.prompt_tokens_details
-        u["cached"] += (details.cached_tokens or 0) if details else 0
+    with USAGE_LOCK:
+        usage = USAGE[model]
+        usage["requests"] += 1
+        if resp.usage:
+            usage["prompt"] += resp.usage.prompt_tokens or 0
+            usage["completion"] += resp.usage.completion_tokens or 0
+            details = resp.usage.prompt_tokens_details
+            usage["cached"] += (details.cached_tokens or 0) if details else 0

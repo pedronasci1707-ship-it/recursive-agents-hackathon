@@ -1,5 +1,6 @@
 """Sell before you leave: photo or text -> instant offer -> pickup. Customer-facing."""
 
+import hashlib
 from datetime import date
 
 import streamlit as st
@@ -12,7 +13,9 @@ WINDOWS = ["8–11 am", "12–3 pm", "4–7 pm"]
 
 u = state.user()
 name = u["name"]
-mine = st.session_state.setdefault("my_items", [])
+owner = u["email"]
+mine_key, offer_key = f"my_items:{owner}", f"offer:{owner}"
+mine = st.session_state.setdefault(mine_key, [])
 
 c.page_header("Sell before you leave", f"Moving out, {name}?",
               "Add a photo to get a provisional offer. We confirm condition and operation at pickup.")
@@ -35,6 +38,9 @@ with tab_new:
             st.image(image, width=220)
         text = st.text_area("Describe it (optional)", value=example["text"] if example else "", height=90,
                             placeholder="e.g. Black mini fridge, 2 years old, works great, model XYZ-12")
+        input_sig = hashlib.sha256((image or b"") + b"\0" + text.encode("utf-8")).hexdigest()
+        if st.session_state.get(offer_key) and st.session_state[offer_key].get("input_sig") != input_sig:
+            st.session_state.pop(offer_key, None)
         if st.button("Get my instant offer", type="primary", icon=":material/bolt:", width="stretch"):
             if not image:
                 st.warning("Add a photo of the item. Our agent grades its quality from the photo.")
@@ -44,8 +50,9 @@ with tab_new:
                 with st.spinner("Looking at your item…"):
                     try:
                         parsed = agents.intake_listing({"seller": name, "text": text.strip()}, image=image, mime=mime)
-                        st.session_state.offer = {
+                        st.session_state[offer_key] = {
                             "parsed": parsed, "accepted": False, "photo": image, "ext": ext,
+                            "input_sig": input_sig,
                             "recall": rules.recall_reason(parsed.get("model"), rules.recall_list()),
                             **rules.price_listing(parsed["category"], parsed["condition"], parsed.get("quality_score")),
                         }
@@ -53,7 +60,7 @@ with tab_new:
                         st.error("We couldn't read that. Try adding what the item is and its condition.")
 
     with right:
-        offer = st.session_state.get("offer")
+        offer = st.session_state.get(offer_key)
         if not offer:
             st.html(f"""<div class="offer" style="text-align:center;padding:40px 24px">
                 <div class="tile" style="--tint:var(--mint);margin:0 auto 14px">{c.icon("sell")}</div>
@@ -79,7 +86,8 @@ with tab_new:
             else:
                 if offer.get("photo"):
                     st.image(offer["photo"], width=200)
-                defects = ", ".join(p.get("defects") or []) or "no visible defects"
+                defects = c.esc(", ".join(str(defect) for defect in (p.get("defects") or []))
+                                or "no visible defects")
                 st.html(f"""<div class="offer">
                     <div style="font-weight:700;margin-bottom:8px">Quality: {c.CONDITION.get(p["condition"], p["condition"])}
                     {c.quality_chip(p)} · {c.esc(defects)}</div>
@@ -95,27 +103,35 @@ with tab_new:
                 else:
                     with st.container(border=True):
                         st.markdown("**Schedule pickup**")
-                        when = st.date_input("Pickup date", value=date(2027, 5, 7), format="MM/DD/YYYY")
+                        when = st.date_input("Pickup date", value=max(date.today(), date(2027, 5, 7)),
+                                             min_value=date.today(), format="MM/DD/YYYY")
                         window = st.segmented_control("Time window", WINDOWS, default=WINDOWS[0], key="pickup_window")
                         where = st.text_input("Pickup address", placeholder="e.g. Wolf Village, Bldg C, Room 214")
                         if st.button("Accept offer & book pickup", type="primary", width="stretch"):
                             if not where.strip():
                                 st.error("Add where we should pick it up.")
                             else:
-                                listed = db.add_product(
-                                    {"id": c.ID_PREFIX.get(p["category"], "ITEM") + "-00", "name": p.get("name", "Item"),
-                                     "category": p["category"], "condition": p["condition"],
-                                     "quality_score": p.get("quality_score"), "defects": p.get("defects") or [],
-                                     "model": p.get("model") or "", "color": p.get("color"), "style": p.get("style"),
-                                     **rules.price_listing(p["category"], p["condition"], p.get("quality_score"))},
-                                    photo_bytes=offer.get("photo"), ext=offer.get("ext") or "jpg")
-                                offer["accepted"] = True
-                                mine.append({"id": listed["id"], "photo": listed.get("photo"),
-                                             "name": p.get("name", "Item"), "category": p["category"],
-                                             "offer": offer["acquisition_cost"], "date": when,
-                                             "window": window or WINDOWS[0], "where": where})
-                                st.toast(f"Pickup booked · listed in the store as {listed['id']}", icon=":material/task_alt:")
-                                st.rerun()
+                                try:
+                                    listed = db.add_product(
+                                        {"id": c.ID_PREFIX.get(p["category"], "ITEM") + "-00",
+                                         "name": p.get("name", "Item"), "category": p["category"],
+                                         "condition": p["condition"], "quality_score": p.get("quality_score"),
+                                         "defects": p.get("defects") or [], "model": p.get("model") or "",
+                                         "color": p.get("color"), "style": p.get("style"),
+                                         **rules.price_listing(p["category"], p["condition"],
+                                                               p.get("quality_score"))},
+                                        photo_bytes=offer.get("photo"), ext=offer.get("ext") or "jpg")
+                                except (OSError, ValueError) as error:
+                                    st.error(f"We couldn't save this item yet: {error}")
+                                else:
+                                    offer["accepted"] = True
+                                    mine.append({"id": listed["id"], "photo": listed.get("photo"),
+                                                 "name": p.get("name", "Item"), "category": p["category"],
+                                                 "offer": offer["acquisition_cost"], "date": when,
+                                                 "window": window or WINDOWS[0], "where": where})
+                                    st.toast(f"Pickup booked · listed in the store as {listed['id']}",
+                                             icon=":material/task_alt:")
+                                    st.rerun()
             with st.expander("What we understood from your listing"):
                 st.json({k: p.get(k) for k in ("name", "category", "condition", "model", "color", "style", "notes")})
 
