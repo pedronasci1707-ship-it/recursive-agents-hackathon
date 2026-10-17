@@ -76,6 +76,20 @@ def change_kit(res, kit, new_ids):
     return True, []
 
 
+def final_check(res, kit):
+    """Checkout: re-verify against live inventory that every item is still reserved for this student and safe.
+    Returns a list of problems (empty = OK to charge)."""
+    inv = inventory(res)
+    problems = []
+    for item in kit["items"]:
+        live = inv.get(item["id"])
+        if not live or kit["request_id"] not in (live.get("reserved_for") or ""):
+            problems.append(f"{item['name']} is no longer reserved for you.")
+        elif not is_safe(live):
+            problems.append(f"{item['name']} didn't pass our safety checks.")
+    return problems
+
+
 def swap(res, kit, old_id, new_id):
     return change_kit(res, kit, [new_id if i["id"] == old_id else i["id"] for i in kit["items"]])
 

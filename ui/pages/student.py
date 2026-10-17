@@ -1,5 +1,6 @@
 """My kit: build a move-in kit, adjust it, book delivery. Customer-facing: no agent internals."""
 
+import time
 from datetime import date
 
 import streamlit as st
@@ -32,6 +33,84 @@ prefs = st.session_state.setdefault(f"prefs_{rid}", {
     "min_condition": "B", "colors": [], "style": None,
 })
 QUALITY_OPTIONS = ["C", "B", "A"]   # Fair, Good, Excellent: "at least this good"
+
+
+# ---------------------------------------------------------------- checkout (demo, Stripe-style; nothing is charged)
+TEST_CARD_HELP = "Demo checkout: no real payment. Use test card 4242 4242 4242 4242, any future date, any CVC."
+DECLINED_TEST_CARD = "4000000000000002"   # same convention as Stripe's test cards
+
+
+def _luhn_ok(number):
+    digits = [int(d) for d in number][::-1]
+    total = sum(d if i % 2 == 0 else (d * 2 - 9 if d * 2 > 9 else d * 2) for i, d in enumerate(digits))
+    return len(number) in (15, 16) and total % 10 == 0
+
+
+def _card_problems(name, address, number, expiry, cvc):
+    problems = []
+    if not name.strip():
+        problems.append("Add the name on the card.")
+    if not address.strip():
+        problems.append("Add your delivery address so we know where to bring your kit.")
+    if not _luhn_ok(number):
+        problems.append("That card number doesn't look right.")
+    parts = expiry.replace(" ", "").split("/")
+    if len(parts) != 2 or not all(p.isdigit() for p in parts) or not 1 <= int(parts[0]) <= 12 \
+            or (2000 + int(parts[1][-2:]), int(parts[0])) < (date.today().year, date.today().month):
+        problems.append("Expiry should be a future month, like 08/28.")
+    if not (cvc.isdigit() and len(cvc) in (3, 4)):
+        problems.append("CVC is the 3 digits on the back of the card.")
+    return problems
+
+
+def checkout(kit, order_no):
+    """Name, delivery address and card. On 'Pay', the agents re-check the kit before the order is confirmed."""
+    st.markdown("**Checkout**")
+    st.caption(f":material/info: {TEST_CARD_HELP}")
+    name = st.text_input("Full name", placeholder="Ana Souza", key=f"co_name_{rid}")
+    address = st.text_input("Delivery address", placeholder="Wolf Village, Bldg C, Room 214, Raleigh NC",
+                            key=f"co_addr_{rid}")
+    number = st.text_input("Card number", placeholder="1234 1234 1234 1234", max_chars=19, key=f"co_card_{rid}")
+    exp_col, cvc_col = st.columns(2)
+    expiry = exp_col.text_input("Expiry", placeholder="MM / YY", max_chars=7, key=f"co_exp_{rid}")
+    cvc = cvc_col.text_input("CVC", placeholder="123", max_chars=4, type="password", key=f"co_cvc_{rid}")
+    if not st.button(f"Pay ${kit['price']:.0f}", type="primary", icon=":material/lock:", width="stretch"):
+        st.caption(f"Delivered on move-in day, {prefs['move_in']:%B %d}. Free cancellation until 48h before.")
+        return
+    digits = "".join(ch for ch in number if ch.isdigit())
+    problems = _card_problems(name, address, digits, expiry, cvc)
+    if problems:
+        for p in problems:
+            st.error(p)
+        return
+    with st.status("Processing your order…", expanded=True) as box:
+        box.write(":material/lock: Securing your payment")
+        time.sleep(0.9)
+        if digits == DECLINED_TEST_CARD:
+            box.update(label="Payment declined", state="error")
+            st.error("Your card was declined. Try another card.")
+            return
+        box.write(":material/fact_check: Our agents are re-checking every item is still reserved for you")
+        time.sleep(0.9)
+        if problems := store.final_check(res, kit):
+            box.update(label="We couldn't confirm your kit", state="error")
+            for p in problems:
+                st.error(p)
+            st.info("You were not charged. Swap the item or start over to rebuild your kit.")
+            return
+        box.write(":material/local_shipping: Scheduling delivery for move-in day")
+        time.sleep(0.7)
+        box.update(label="Payment approved · order confirmed", state="complete")
+    brand = {"4": "Visa", "5": "Mastercard", "3": "Amex"}.get(digits[0], "Card")
+    # Only the last 4 digits are kept, never the full card number or CVC.
+    st.session_state[f"order_{rid}"] = {"date": prefs["move_in"], "window": WINDOWS[1], "where": address.strip(),
+                                        "name": name.strip(), "brand": brand, "last4": digits[-4:],
+                                        "amount": kit["price"]}
+    for k in (f"co_card_{rid}", f"co_cvc_{rid}", f"co_exp_{rid}"):
+        st.session_state.pop(k, None)
+    st.toast(f"Order {order_no} confirmed", icon=":material/task_alt:")
+    time.sleep(0.6)
+    st.rerun()
 
 
 # ---------------------------------------------------------------- build flow
@@ -216,25 +295,13 @@ with right:
             st.info("Our team is reviewing your kit. We never confirm a kit that hasn't passed every check.")
         elif order:
             st.html(f"""<div class="confirm"><h3>{c.icon("task_alt")} Order confirmed</h3>
-                <div>Order <b>{order_no}</b></div>
-                <div>{order['date']:%A, %B %d} · {order['window']}</div>
-                <div>{c.esc(order['where'])}</div></div>""")
-            if st.button("Change delivery", icon=":material/edit_calendar:", width="stretch"):
-                st.session_state.pop(f"order_{rid}")
-                st.rerun()
+                <div>Order <b>{order_no}</b> · paid ${order.get('amount', kit['price']):.0f} with
+                     {order.get('brand', 'card')} •••• {order.get('last4', '----')}</div>
+                <div>Delivery {order['date']:%A, %B %d} · {order['window']}</div>
+                <div>{c.esc(order.get('name', ''))} · {c.esc(order['where'])}</div></div>""")
+            st.caption("A receipt would be emailed to you. This is a demo: no real payment was made.")
         else:
-            st.markdown("**Book delivery**")
-            when = st.date_input("Delivery date", value=prefs["move_in"], format="MM/DD/YYYY")
-            window = st.segmented_control("Time window", WINDOWS, default=WINDOWS[1])
-            where = st.text_input("Residence and room", placeholder="e.g. Wolf Village, Bldg C, Room 214")
-            if st.button("Confirm order", type="primary", icon=":material/lock:", width="stretch"):
-                if not where.strip():
-                    st.error("Add your residence and room so we know where to deliver.")
-                else:
-                    st.session_state[f"order_{rid}"] = {"date": when, "window": window or WINDOWS[1], "where": where}
-                    st.toast("Order confirmed", icon=":material/task_alt:")
-                    st.rerun()
-            st.caption("Pay on delivery. Free cancellation until 48h before move-in.")
+            checkout(kit, order_no)
     if not order and st.button("Start over with new preferences", icon=":material/restart_alt:", width="stretch"):
         st.session_state[f"rebuild_{rid}"] = True
         st.rerun()
