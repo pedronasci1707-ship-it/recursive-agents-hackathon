@@ -1,5 +1,7 @@
 """Admin: how the agent team works, and why it only says "done" when it is really done."""
 
+import base64
+
 import streamlit as st
 
 from campusloop import rules
@@ -98,7 +100,9 @@ def diagram(nodes=(), edges=(), color=BLUE):
         parts.append(f'<text x="{x + 14}" y="{y + 26}" font-size="14.5" font-weight="700" fill="#14201B">{c.esc(title)}</text>')
         parts.append(f'<text x="{x + 14}" y="{y + 45}" font-size="12" fill="#66706B">{c.esc(sub)}</text>')
     parts.append("</svg>")
-    return "".join(parts)
+    # As an <img>: st.html's sanitizer drops inline <svg>.
+    data = base64.b64encode("".join(parts).encode()).decode()
+    return f'<img src="data:image/svg+xml;base64,{data}" style="width:100%;max-width:1100px" alt="Agent flow">'
 
 
 def now_box(e, color):
