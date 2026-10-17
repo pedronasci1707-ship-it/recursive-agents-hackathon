@@ -1,0 +1,312 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,400,0..1,0&display=block">
+<style>
+  :root { --ink:#14201B; --muted:#5E6762; --line:#CDD3CF; --blue:#3E63DD; --red:#E5484D; --orange:#F76B15; --green:#30A46C; --grey:#9AA39E; }
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: Inter, system-ui, sans-serif; color: var(--ink); background: transparent; }
+  .ms { font-family: 'Material Symbols Rounded'; font-weight: normal; font-style: normal; line-height: 1; letter-spacing: normal;
+        text-transform: none; white-space: nowrap; direction: ltr; -webkit-font-smoothing: antialiased; font-feature-settings: 'liga'; }
+  .bar { display: flex; align-items: center; gap: 12px; margin-bottom: 8px; flex-wrap: wrap; }
+  .now { flex: 1; min-width: 280px; min-height: 52px; border-left: 6px solid var(--grey); background: #fff; border-radius: 12px;
+         padding: 8px 14px; font-size: 15px; line-height: 1.35; box-shadow: 0 1px 3px rgba(0,0,0,.06); }
+  .now b { font-weight: 800; }
+  .controls { display: flex; gap: 8px; align-items: center; }
+  select { font: 600 14px Inter, sans-serif; padding: 9px 10px; border-radius: 10px; border: 2px solid var(--ink); background: #fff; }
+  .sim { font: 800 15px Inter, sans-serif; color: #fff; background: var(--blue); border: 2px solid var(--ink); border-radius: 999px;
+         padding: 10px 20px; cursor: pointer; box-shadow: 3px 3px 0 var(--ink); }
+  .sim:active { transform: translate(2px,2px); box-shadow: 0 0 0 var(--ink); }
+  .progress { height: 5px; background: #E4E8E5; border-radius: 99px; overflow: hidden; margin-bottom: 6px; }
+  .progress > div { height: 100%; width: 0; background: var(--blue); transition: width .3s; }
+  .board { position: relative; width: 100%; height: 560px; }
+  svg.edges { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+  .node { position: absolute; transform: translate(-50%, -50%); width: 176px; min-height: 74px; background: #fff;
+          border: 3px solid var(--line); border-radius: 18px; padding: 10px 12px; cursor: pointer; display: flex;
+          align-items: center; gap: 10px; transition: border-color .25s, box-shadow .25s, background .25s; user-select: none; }
+  .node:hover { box-shadow: 0 6px 18px rgba(0,0,0,.10); }
+  .node .ico { font-size: 30px; color: var(--muted); }
+  .node .name { font-weight: 800; font-size: 16px; line-height: 1.15; }
+  .node.active { box-shadow: 0 0 0 6px color-mix(in srgb, var(--c) 30%, transparent); border-color: var(--c); }
+  .node.thinking { border-color: var(--blue); background: #F2F5FF; }
+  .node.thinking .ico { color: var(--blue); }
+  .badge { position: absolute; top: -14px; right: -12px; display: none; align-items: center; gap: 4px; background: var(--blue);
+           color: #fff; border-radius: 999px; padding: 4px 10px 4px 7px; font-weight: 800; font-size: 14px;
+           box-shadow: 0 2px 6px rgba(62,99,221,.4); }
+  .node.thinking .badge { display: flex; }
+  .badge .ms { font-size: 18px; animation: think 1s ease-in-out infinite; }
+  @keyframes think { 0%,100% { transform: scale(1) rotate(0); } 50% { transform: scale(1.25) rotate(-10deg); } }
+  .dots { display: none; margin-left: auto; }
+  .node.thinking .dots { display: inline-flex; gap: 3px; }
+  .dots i { width: 6px; height: 6px; border-radius: 50%; background: var(--blue); animation: dot 1s infinite; }
+  .dots i:nth-child(2) { animation-delay: .15s; } .dots i:nth-child(3) { animation-delay: .3s; }
+  @keyframes dot { 0%,80%,100% { opacity: .25; transform: translateY(0); } 40% { opacity: 1; transform: translateY(-4px); } }
+  .flash-red { animation: fr .8s; } .flash-green { animation: fg .8s; } .flash-orange { animation: fo .8s; }
+  @keyframes fr { 30% { background: #FDE2E3; border-color: var(--red); } }
+  @keyframes fg { 30% { background: #DDF3E6; border-color: var(--green); } }
+  @keyframes fo { 30% { background: #FFE9D9; border-color: var(--orange); } }
+  .node.inbox, .node.store { border-style: dashed; background: #FAFBFA; }
+  .finished { position: absolute; transform: translate(-50%, -50%); width: 46%; height: 112px; border: 3px solid var(--ink);
+              border-radius: 20px; background: #fff; display: grid; grid-template-columns: 1fr 1fr; cursor: pointer; overflow: hidden; }
+  .finished:hover { box-shadow: 0 6px 18px rgba(0,0,0,.12); }
+  .lane { padding: 8px 12px; } .lane + .lane { border-left: 2px dashed var(--line); }
+  .lane .t { font-weight: 800; font-size: 15px; display: flex; align-items: center; gap: 6px; }
+  .lane.done .t { color: var(--green); } .lane.human .t { color: var(--orange); }
+  .finished .hint { position: absolute; bottom: 6px; right: 12px; font-size: 12px; color: var(--muted); font-weight: 600; }
+  .token { position: absolute; width: 36px; height: 36px; margin: -18px 0 0 -18px; border-radius: 50%; color: #fff;
+           display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 15px; z-index: 5;
+           border: 2.5px solid #fff; box-shadow: 0 2px 6px rgba(0,0,0,.25);
+           transition: left .38s cubic-bezier(.3,.7,.2,1), top .38s cubic-bezier(.3,.7,.2,1), background .25s; }
+  .token.listing { border-radius: 9px; width: 32px; height: 32px; margin: -16px 0 0 -16px; font-size: 12px; }
+  .token .tip { position: absolute; bottom: 42px; left: 50%; transform: translateX(-50%); background: var(--ink); color: #fff;
+                font-size: 12px; font-weight: 600; padding: 3px 8px; border-radius: 6px; white-space: nowrap; display: none; }
+  .token:hover .tip { display: block; }
+  .s-wait { background: var(--grey); } .s-work, .s-proposal { background: var(--blue); } .s-ok, .s-done { background: var(--green); }
+  .s-bad { background: var(--red); } .s-human { background: var(--orange); }
+  .legend { display: flex; gap: 16px; flex-wrap: wrap; font-size: 14px; color: var(--muted); margin: 2px 0 4px; }
+  .legend span { display: inline-flex; align-items: center; gap: 6px; } .legend i { width: 14px; height: 14px; border-radius: 50%; display: inline-block; }
+  .modal-bg { position: fixed; inset: 0; background: rgba(20,32,27,.45); display: none; align-items: flex-start; justify-content: center;
+              z-index: 50; padding: 24px; overflow: auto; }
+  .modal { background: #fff; border-radius: 18px; max-width: 760px; width: 100%; padding: 22px 26px; position: relative;
+           border: 2px solid var(--ink); box-shadow: 6px 6px 0 var(--ink); }
+  .modal h2 { margin: 0 0 6px; display: flex; align-items: center; gap: 10px; font-size: 24px; }
+  .modal h4 { margin: 16px 0 6px; font-size: 15px; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); }
+  .modal p, .modal li { font-size: 15px; line-height: 1.5; }
+  .modal ul { margin: 0; padding-left: 20px; }
+  .modal .x { position: absolute; top: 14px; right: 16px; font-size: 26px; cursor: pointer; color: var(--muted); }
+  .doing { background: #F2F5FF; border-left: 5px solid var(--blue); padding: 10px 12px; border-radius: 10px; font-size: 15px; }
+  .act { font-size: 14px; line-height: 1.45; border-left: 4px solid var(--grey); padding: 4px 10px; margin: 5px 0; background: #FAFBFA; border-radius: 6px; }
+  .act .ts { color: var(--muted); font-family: ui-monospace, monospace; font-size: 12px; margin-right: 6px; }
+  .pill { display: inline-block; color: #fff; font-weight: 700; border-radius: 999px; padding: 3px 12px; font-size: 13px; }
+</style>
+</head>
+<body>
+<div class="bar">
+  <div class="now" id="now"><b>Ready.</b> Press <b>▶ Simulate</b> to watch every request move through the agents.</div>
+  <div class="controls">
+    <select id="scenario"></select>
+    <select id="speed"><option value="1">1×</option><option value="2" selected>2×</option><option value="4">4×</option></select>
+    <button class="sim" id="sim">▶ Simulate</button>
+  </div>
+</div>
+<div class="progress"><div id="prog"></div></div>
+<div class="legend">
+  <span><i style="background:var(--grey)"></i>Waiting</span><span><i style="background:var(--blue)"></i>Being worked on</span>
+  <span><i style="background:var(--red)"></i>Rejected</span><span><i style="background:var(--green)"></i>Verified</span>
+  <span><i style="background:var(--orange)"></i>Handed to a human</span>
+  <span style="margin-left:auto">Click any agent or the Finished box for details</span>
+</div>
+<div class="board" id="board">
+  <svg class="edges" id="edges"></svg>
+</div>
+<div class="modal-bg" id="modalbg"><div class="modal" id="modal"></div></div>
+
+<script>
+const DATA = /*__DATA__*/null;
+const NODES = {
+  inbox: { x: 10, y: 12, name: "Incoming requests", icon: "inbox", cls: "inbox" },
+  coordinator: { x: 50, y: 12, name: "Coordinator", icon: "account_tree" },
+  listing_reader: { x: 11, y: 48, name: "Listing Reader", icon: "document_scanner" },
+  kit_builders: { x: 37, y: 48, name: "Kit Builders", icon: "shopping_bag" },
+  quality_checker: { x: 63, y: 48, name: "Quality Checker", icon: "fact_check" },
+  report_writer: { x: 89, y: 48, name: "Report Writer", icon: "description" },
+  blocked: { x: 11, y: 85, name: "Blocked listings", icon: "block", cls: "store" },
+  inventory: { x: 32, y: 85, name: "Live inventory", icon: "inventory_2", cls: "store" },
+};
+const FIN = { x: 72, y: 85 };
+const EDGES = [["inbox","coordinator"],["coordinator","listing_reader"],["coordinator","kit_builders"],
+  ["kit_builders","quality_checker"],["quality_checker","coordinator","back"],["coordinator","finished"],
+  ["listing_reader","inventory"],["listing_reader","blocked"],["inventory","kit_builders","dash"],["quality_checker","report_writer"]];
+const KIND = { verify_fail: "red", conflict: "red", verify_pass: "green", reserve: "green", done: "green", intake: "green",
+  replan: "orange", escalate: "orange", plan: "blue", info: "blue" };
+const COLOR = { red: "#E5484D", green: "#30A46C", orange: "#F76B15", blue: "#3E63DD", grey: "#9AA39E" };
+
+const board = document.getElementById("board");
+let key = DATA.start, sb = DATA.boards[key], cur = -1, timer = null;
+const tokEls = {}, nodeEls = {};
+
+function esc(s) { return String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c])); }
+function W() { return board.clientWidth; } function H() { return board.clientHeight; }
+function at(n) { return n === "finished" ? FIN : NODES[n]; }
+
+function build() {
+  for (const [id, n] of Object.entries(NODES)) {
+    const el = document.createElement("div");
+    el.className = "node " + (n.cls || "");
+    el.style.left = n.x + "%"; el.style.top = n.y + "%";
+    el.innerHTML = `<span class="ms ico">${n.icon}</span><span class="name">${n.name}</span>
+      <span class="dots"><i></i><i></i><i></i></span><span class="badge"><span class="ms">psychology</span><span class="cnt">0</span></span>`;
+    el.onclick = () => openAgent(id);
+    board.appendChild(el); nodeEls[id] = el;
+  }
+  const f = document.createElement("div");
+  f.className = "finished"; f.style.left = FIN.x + "%"; f.style.top = FIN.y + "%";
+  f.innerHTML = `<div class="lane done"><div class="t"><span class="ms">task_alt</span>Done · verified <span id="ndone"></span></div></div>
+    <div class="lane human"><div class="t"><span class="ms">support_agent</span>Handed to a human <span id="nhuman"></span></div></div>
+    <div class="hint">click for the full history</div>`;
+  f.onclick = openHistory; board.appendChild(f); nodeEls.finished = f;
+  const sel = document.getElementById("scenario");
+  for (const [k, label] of Object.entries(DATA.labels)) {
+    const o = document.createElement("option"); o.value = k; o.textContent = label; if (k === key) o.selected = true; sel.appendChild(o);
+  }
+  sel.onchange = () => { stop(); key = sel.value; sb = DATA.boards[key]; resetTokens(); };
+  document.getElementById("sim").onclick = play;
+  window.addEventListener("resize", () => { drawEdges(); place(cur >= 0 ? sb.frames[cur] : null); });
+  drawEdges(); resetTokens();
+}
+
+function drawEdges() {
+  const svg = document.getElementById("edges"), w = W(), h = H();
+  let s = `<defs><marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+    <path d="M0 0L10 5L0 10z" fill="#B7BFBA"/></marker></defs>`;
+  for (const [from, to, style] of EDGES) {
+    const a = at(from), b = at(to);
+    const x1 = a.x * w / 100, y1 = a.y * h / 100, x2 = b.x * w / 100, y2 = b.y * h / 100;
+    if (style === "back") {
+      const mx = (x1 + x2) / 2 + 60, my = (y1 + y2) / 2;
+      s += `<path d="M${x1} ${y1 - 30} Q ${mx + 40} ${my - 20} ${x2 + 80} ${y2 + 20}" fill="none" stroke="#E8A27A" stroke-width="2.5"
+        stroke-dasharray="7 6" marker-end="url(#a)"/><text x="${mx + 18}" y="${my - 4}" font-size="13" fill="#C2662F" font-weight="700">rejected → replan</text>`;
+    } else {
+      s += `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="#C9D0CC" stroke-width="2.5" ${style === "dash" ? 'stroke-dasharray="6 6"' : ""}/>`;
+    }
+  }
+  svg.innerHTML = s;
+}
+
+function resetTokens() {
+  for (const el of Object.values(tokEls)) el.remove();
+  for (const k in tokEls) delete tokEls[k];
+  for (const t of sb.tokens) {
+    const el = document.createElement("div");
+    el.className = "token s-wait " + (t.kind === "listing" ? "listing" : "");
+    el.innerHTML = `${esc(t.label)}<span class="tip">${esc(t.name)}</span>`;
+    board.appendChild(el); tokEls[t.id] = el;
+  }
+  cur = -1; setNow(null); document.getElementById("prog").style.width = "0";
+  for (const el of Object.values(nodeEls)) el.classList.remove("thinking", "active");
+  place(null);
+}
+
+function place(fr) {
+  const groups = {};
+  for (const t of sb.tokens) {
+    const p = fr ? fr.pos[t.id] : "inbox";
+    (groups[p] = groups[p] || []).push(t);
+  }
+  const w = W(), h = H();
+  for (const [p, toks] of Object.entries(groups)) {
+    let cx, cy, gap = 40, perRow = 4;
+    if (p === "finished_done" || p === "finished_human") {
+      cx = (FIN.x - (p === "finished_done" ? 11.5 : -11.5)) * w / 100; cy = FIN.y * h / 100 + 10; perRow = 5;
+    } else { const n = NODES[p]; cx = n.x * w / 100; cy = n.y * h / 100 + 58; }
+    toks.forEach((t, i) => {
+      const row = Math.floor(i / perRow), inRow = Math.min(perRow, toks.length - row * perRow), col = i % perRow;
+      const el = tokEls[t.id];
+      el.style.left = (cx + (col - (inRow - 1) / 2) * gap) + "px";
+      el.style.top = (cy + row * 38) + "px";
+      el.className = "token s-" + (fr ? fr.status[t.id] : "wait") + (t.kind === "listing" ? " listing" : "");
+    });
+  }
+  let nd = 0, nh = 0;
+  if (fr) for (const t of sb.tokens) { if (fr.pos[t.id] === "finished_done") nd++; if (fr.pos[t.id] === "finished_human") nh++; }
+  document.getElementById("ndone").textContent = nd ? `(${nd})` : "";
+  document.getElementById("nhuman").textContent = nh ? `(${nh})` : "";
+}
+
+function setNow(fr) {
+  const el = document.getElementById("now");
+  if (!fr) { el.style.borderLeftColor = COLOR.grey;
+    el.innerHTML = "<b>Ready.</b> Press <b>▶ Simulate</b> to watch every request move through the agents."; return; }
+  el.style.borderLeftColor = COLOR[KIND[fr.kind] || "blue"];
+  el.innerHTML = `<b>${esc(fr.agent)}</b> · ${esc(fr.msg)}`;
+}
+
+function apply(i) {
+  const fr = sb.frames[i];
+  place(fr); setNow(fr);
+  for (const [id, el] of Object.entries(nodeEls)) {
+    const n = fr.thinking[id] || 0;
+    el.classList.toggle("thinking", n > 0);
+    const cnt = el.querySelector(".cnt"); if (cnt) cnt.textContent = n;
+    el.classList.toggle("active", id === fr.node);
+    el.style.setProperty("--c", COLOR[KIND[fr.kind] || "blue"]);
+  }
+  if (fr.flash && nodeEls[fr.flash]) {
+    const c = KIND[fr.kind] === "green" ? "green" : KIND[fr.kind] === "orange" || fr.msg.startsWith("Broadcast") ? "orange" : "red";
+    const el = nodeEls[fr.flash]; el.classList.remove("flash-red", "flash-green", "flash-orange"); void el.offsetWidth;
+    el.classList.add("flash-" + c);
+  }
+  document.getElementById("prog").style.width = ((i + 1) / sb.frames.length * 100) + "%";
+}
+
+function stop() { if (timer) clearTimeout(timer); timer = null; }
+function play() {
+  stop(); resetTokens();
+  const speed = +document.getElementById("speed").value;
+  const step = () => {
+    cur++; if (cur >= sb.frames.length) { timer = null; return; }
+    apply(cur);
+    const next = sb.frames[cur + 1];
+    if (!next) { timer = null; return; }
+    const gap = Math.min(Math.max(next.t - sb.frames[cur].t, 0), 2.2) / speed;
+    timer = setTimeout(step, Math.max(gap, 0.42) * 1000);
+  };
+  timer = setTimeout(step, 250);
+}
+
+function modal(html) {
+  document.getElementById("modal").innerHTML = `<span class="ms x" onclick="closeModal()">close</span>` + html;
+  document.getElementById("modalbg").style.display = "flex";
+}
+function closeModal() { document.getElementById("modalbg").style.display = "none"; }
+document.getElementById("modalbg").onclick = (e) => { if (e.target.id === "modalbg") closeModal(); };
+
+function framesSoFar() { return cur >= 0 ? sb.frames.slice(0, cur + 1) : []; }
+
+function openAgent(id) {
+  if (id === "inbox") {
+    const reqs = sb.tokens.map(t => `<li><b>${esc(t.name)}</b> (${t.kind === "request" ? "kit request" : "move-out listing"})</li>`).join("");
+    return modal(`<h2><span class="ms">inbox</span>Incoming requests</h2><p>What the team has to finish in this run.</p><ul>${reqs}</ul>`);
+  }
+  const a = DATA.agents[id]; if (!a) return;
+  const mine = framesSoFar().filter(f => f.node === id && f.agent !== "Finished");
+  const fr = cur >= 0 ? sb.frames[cur] : null, n = fr ? (fr.thinking[id] || 0) : 0;
+  const status = n ? `<span class="pill" style="background:${COLOR.blue}">Thinking · ${n} in progress</span>`
+    : `<span class="pill" style="background:${mine.length ? COLOR.green : COLOR.grey}">${mine.length ? "Idle now" : "Waiting"}</span>`;
+  const doing = mine.length ? esc(mine[mine.length - 1].msg) : "Not started yet. Press ▶ Simulate.";
+  const acts = mine.map(f => `<div class="act" style="border-left-color:${COLOR[KIND[f.kind] || "grey"]}"><span class="ts">${f.t.toFixed(1)}s</span>${esc(f.msg)}</div>`).join("")
+    || "<p>Nothing yet.</p>";
+  modal(`<h2><span class="ms">${a.icon}</span>${esc(a.name)}</h2>${status}
+    <h4>What it does</h4><p>${esc(a.about)}</p>
+    <h4>Runs on</h4><p>${esc(a.engine)}</p>
+    <h4>Doing now</h4><div class="doing">${doing}</div>
+    <h4>Its commands</h4><ul>${a.commands.map(c => `<li>${esc(c)}</li>`).join("")}</ul>
+    <h4>Everything it did in this run (${mine.length})</h4>${acts}`);
+}
+
+function openHistory() {
+  const fr = cur >= 0 ? sb.frames[cur] : null;
+  let html = `<h2><span class="ms">history</span>Finished: full history</h2>
+    <p>Every request that reached the end, with everything that happened to it.</p>`;
+  const done = sb.tokens.filter(t => fr && (fr.pos[t.id] === "finished_done" || fr.pos[t.id] === "finished_human" ||
+    fr.pos[t.id] === "inventory" || fr.pos[t.id] === "blocked"));
+  if (!done.length) html += "<p>Nothing finished yet. Press ▶ Simulate.</p>";
+  for (const t of done) {
+    const h = sb.history[t.id]; if (!h) continue;
+    const color = { verified: COLOR.green, accepted: COLOR.green, failed: COLOR.orange, needs_approval: COLOR.orange, blocked: COLOR.red }[h.status] || COLOR.grey;
+    const label = { verified: "Done · verified", accepted: "Accepted into inventory", failed: "Handed to a human",
+      needs_approval: "Needs human approval", blocked: "Blocked (safety)" }[h.status] || h.status;
+    html += `<h4>${esc(h.name)} <span class="pill" style="background:${color}">${label}</span></h4>`;
+    if (h.items) html += `<p>${h.attempts} attempt(s) · ${h.items.length ? "kit: " + esc(h.items.join(", ")) + " · $" + Math.round(h.price) : "no kit shipped"}</p>`;
+    html += h.lines.map(l => `<div class="act" style="border-left-color:${COLOR[KIND[l.kind] || "grey"]}"><span class="ts">${(+l.t).toFixed(1)}s</span><b>${esc(l.agent)}</b>: ${esc(l.msg)}</div>`).join("");
+  }
+  modal(html);
+}
+
+build();
+if (DATA.autoplay) setTimeout(play, 400);
+</script>
+</body>
+</html>
