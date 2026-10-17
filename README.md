@@ -5,6 +5,8 @@ Built at the Recursive Agents Hackathon (Crusoe x Cerebral Valley, San Francisco
 **Challenge 01: Done Means Done**, on **Crusoe Managed Inference + NVIDIA Nemotron**.
 
 🎬 **Demo video (1 min):** _link coming soon_
+🌐 **Live app:** https://campusloop-ai.streamlit.app · demo accounts at
+[/demo](https://campusloop-ai.streamlit.app/demo) (no password: Ana, Marcus, Priya, Jake or Admin)
 
 ## Problem
 
@@ -79,6 +81,24 @@ while they are planning, a walk-in buyer from outside the system buys the best m
    The same recalled fridge model was also blocked at intake.
 
 If a kit still fails after the attempt limit, the Controller escalates it to a human instead of shipping a bad kit.
+The *impossible request* scenario shows it: Priya's budget is cut to $40, her Kit Agent tries three times, every
+proposal is rejected, and the Controller stops and hands her kit to a human. No infinite loop, nothing unverified shipped.
+
+## The app
+
+- **Students moving in** (Ana, Marcus, Priya) tell CampusLoop their budget and what they need. The agents build and
+  verify a kit in seconds. Students can swap or remove items or add more from the shop, and every change is re-verified
+  with the same rules. Then they book delivery. Customers never see the agents' internals.
+- **Students moving out** (Jake) describe an item or upload a photo (read by a vision model) and get an instant
+  offer. Recalled models are refused. Then they book a pickup.
+- **Admin · Agent control room**: an animated flow where every request travels through the agents in real time.
+  You see thinking indicators, a live count of processes per agent, and the *rejected → replan* loop, until each
+  request reaches **Finished**, which keeps its full history. Click any agent to see what it does, its commands and
+  everything it did. **▶ Simulate** replays recorded scenarios (conflict + recall, impossible request), or
+  **Run the real agents on Crusoe** runs the team live and animates that run.
+
+In the app the agents are named by role: **Coordinator** (Recursive Controller), **Listing Reader** (Intake Agent),
+**Kit Builders** (Kit Agents), **Quality Checker** (Verifier) and **Report Writer** (Reporter).
 
 ## Business model
 
@@ -96,8 +116,7 @@ want less dumpster waste. The first pilot target is student housing near **NC St
 changing inventory and many buyers at once. A team of agents that plans in parallel and never ships an
 unverified kit lets a tiny team run that peak; humans only see what the agents escalate.
 
-The app shows the impact of each run: items given a second life, estimated savings for students versus buying
-new, money paid to move-out sellers, and CampusLoop's profit.
+Every kit shows the student's savings versus buying new, and every kit keeps at least a 30% margin for CampusLoop.
 
 ## Built on Crusoe
 
@@ -109,8 +128,10 @@ role-based model routing, retries with backoff and token/cache accounting in `co
 | Kit Agents (planning) | `nvidia/NVIDIA-Nemotron-3-Super-120B-A12B` |
 | Reporter | `nvidia/Nemotron-3.5-Lightning-30B-A3B` |
 | Intake Agents | `deepseek-ai/Deepseek-V4-Flash` |
+| Intake from a photo | `google/gemma-4-31b-it` (vision) |
 
-A full run takes about 12 seconds.
+The Verifier and the Recursive Controller are deterministic code. A full run takes about 15 to 25 seconds. Model calls
+have timeouts and capped retries, and a deterministic fallback planner takes over if a model call fails.
 
 ## Run it
 
@@ -131,8 +152,8 @@ streamlit run app.py        # opens the demo UI in your browser
 
 If PowerShell blocks the activation script, run `Set-ExecutionPolicy -Scope Process Bypass` first.
 
-In the app, keep **Use sample run** on to replay a recorded run without API calls, or turn it off and press
-**Run agents** to run the real agents on Crusoe. Other ways to run it:
+Sign in from `/demo` (Ana, Marcus, Priya, Jake or Admin). In the admin control room, **▶ Simulate** replays a
+recorded run without API calls, and **Run the real agents on Crusoe** runs them live. Other ways to run it:
 
 ```bash
 python -m campusloop.engine   # live run in the terminal, prints the timeline
@@ -142,20 +163,26 @@ python -m pytest              # offline tests for the rules and the engine
 ## Layout
 
 ```
-app.py                  Streamlit demo UI: live timeline, kit cards, attempt history, Done Report
+app.py                  Streamlit entry point: sign-in, roles, navigation
+ui/pages/               Landing, demo accounts, My kit, Shop, Sell, Agent control room (admin)
+ui/flowboard.py/.html   Admin animation: turns a run's events into frames; the browser animates them
+ui/store.py             Customer kit changes, re-verified with the Verifier's rules
+ui/state.py             Session, demo accounts, demo scenarios, rate limit for live runs
+ui/components.py        Design system (CSS, product cards)
 campusloop/engine.py    Recursive Controller: plan → verify → replan, final audit, report
-campusloop/agents.py    LLM agents: Intake, Kit, Reporter
+campusloop/agents.py    LLM agents: Intake (text or photo), Kit, Reporter
 campusloop/rules.py     Deterministic verification: inventory, recalls, budget, margin
 campusloop/data/        Test catalog, move-out listings, student requests, recall list
 core/crusoe_client.py   Crusoe client: model routing per agent role, retries with backoff, token/cache accounting
 docs/CONTRACT.md        Engine ↔ UI contract
-demo/sample_run.json    Recorded run used by the UI's sample mode
+demo/*.json             Recorded runs: conflict + recall, impossible request
+tests/                  Offline tests (fake agents, no API calls)
 check_crusoe.py         Smoke test for the Crusoe endpoint
 ```
 
 ## Team
 
-- **Pedro Nascimento** ([@pedronasci1707-ship-it](https://github.com/pedronasci1707-ship-it)): agent engine
-- **Augusto** ([@augustolps10](https://github.com/augustolps10)): demo UI, README and video
+- **Pedro Nascimento** ([@pedronasci1707-ship-it](https://github.com/pedronasci1707-ship-it)): agent engine, storefront and control room
+- **Augusto** ([@augustolps10](https://github.com/augustolps10)): first demo UI, visual design, landing, README and video
 
 **Next:** a pilot with student apartment buildings near NC State.

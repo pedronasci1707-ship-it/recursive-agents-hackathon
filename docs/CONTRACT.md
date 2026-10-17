@@ -9,6 +9,8 @@ result = run(
     on_event=None,                 # optional callback(event: dict), called live for every event
     simulate_outside_buyer=True,   # chaos switch: an outside buyer grabs an item mid-run
     max_attempts=3,                # per buyer request, before escalating to a human
+    requests=None,                 # optional: override campusloop/data/requests.json (e.g. a student's own request)
+    listings=None,                 # optional: override campusloop/data/intake.json
 )
 ```
 
@@ -16,7 +18,8 @@ result = run(
 `on_event` is always called from the same thread that called `run()`, so it is safe to update Streamlit
 elements from it.
 
-While the engine is being built, develop the UI against **`demo/sample_run.json`** — it has exactly this shape:
+Recorded runs with exactly this shape live in **`demo/`** (`sample_run.json`: conflict + recall,
+`sample_escalation.json`: impossible request). Regenerate the first with `python -m campusloop.engine --save`.
 
 ```python
 import json
@@ -67,7 +70,9 @@ result = json.load(open("demo/sample_run.json", encoding="utf-8"))
 - `agent`: `"Controller"`, `"Intake Agent"`, `"Kit Agent · Ana"`, `"Verifier"`, `"Outside world"`, `"Reporter"`
 - `kind`: `info` · `intake` · `plan` · `verify_pass` · `verify_fail` · `conflict` · `replan` · `reserve` · `escalate` · `done`
 - `message`: one human-readable line (show it as-is)
-- `data`: optional extra fields (dict)
+- `data`: optional extra fields (dict). Events about one student carry `buyer`; proposals and passes carry
+  `item_ids`; rejections carry `issues`; accepted listings carry `item` (`id`, `name`, `category`, `resale_price`);
+  the outside buyer carries `item_id`.
 
 Suggested colors: `verify_fail`/`conflict` red, `verify_pass`/`reserve`/`done` green, `replan`/`escalate` orange, the rest neutral.
 
