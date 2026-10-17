@@ -42,8 +42,26 @@ def user():
     return st.session_state.get("user")
 
 
+def account(email):
+    """Demo account or one created in this browser session (public demo: nothing is stored server-side)."""
+    return USERS.get(email) or st.session_state.get("accounts", {}).get(email)
+
+
 def sign_in(email):
-    st.session_state.user = {"email": email, **USERS[email]}
+    st.session_state.user = {"email": email, **account(email)}
+
+
+def register(name, email, role):
+    """Create a session-only account. A new incoming student also gets their own kit request."""
+    acct = {"name": name, "role": role}
+    if role == "student":
+        rid = f"REQ-{abs(hash(email)) % 100000:05d}"
+        acct["request_id"] = rid
+        st.session_state.setdefault("my_requests", {})[rid] = {
+            "id": rid, "buyer": name, "profile": "Incoming student", "budget": 200,
+            "needs": ["mini_fridge", "desk_lamp", "storage_bins"],
+        }
+    st.session_state.setdefault("accounts", {})[email] = acct
 
 
 def sign_out():
@@ -55,7 +73,7 @@ def result():
 
 
 def requests():
-    return rules.load("requests.json")
+    return rules.load("requests.json") + list(st.session_state.get("my_requests", {}).values())
 
 
 def has_api_key():
@@ -98,6 +116,8 @@ def run_agents(on_event, live, chaos=True, max_attempts=3, speed=2.0, custom_req
         reqs = transform(requests()) if transform else requests()
         if custom_request:
             reqs = [custom_request if r["id"] == custom_request["id"] else r for r in reqs]
+            if all(r["id"] != custom_request["id"] for r in reqs):  # a newly created student account
+                reqs.append(custom_request)
         res = run(on_event=on_event, simulate_outside_buyer=chaos, max_attempts=max_attempts, requests=reqs)
         st.session_state.source = "live run on Crusoe"
     else:

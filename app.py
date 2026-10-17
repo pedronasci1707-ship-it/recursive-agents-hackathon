@@ -13,6 +13,7 @@ st.logo("assets/logo.svg", size="large", icon_image="assets/icon.svg")
 
 PAGES = {
     "login": st.Page("ui/pages/login.py", title="Sign in", url_path="login"),
+    "demo": st.Page("ui/pages/demo.py", title="Demo accounts", icon=":material/badge:", url_path="demo"),
     "kit": st.Page("ui/pages/student.py", title="My kit", url_path="my-kit"),
     "shop": st.Page("ui/pages/shop.py", title="Shop", url_path="shop"),
     "sell": st.Page("ui/pages/seller.py", title="Sell", url_path="sell"),
@@ -27,7 +28,7 @@ PAGES = {
 BY_ROLE = {
     "student": ["kit", "shop", "sell"],
     "seller": ["sell", "shop"],
-    "admin": ["live", "flow", "ops", "preview"],
+    "admin": ["live", "flow", "ops", "preview", "demo"],
 }
 
 user = state.user()
@@ -35,7 +36,8 @@ customer = not user or user["role"] != "admin"
 components.inject_css(customer=customer)
 
 if not user:
-    nav = st.navigation([PAGES["login"]], position="hidden")
+    # /demo (demo accounts for the team) is reachable by URL only; the public page offers sign-in and sign-up.
+    nav = st.navigation([PAGES["login"], PAGES["demo"]], position="hidden")
 elif customer:
     nav = st.navigation([PAGES[k] for k in BY_ROLE[user["role"]]], position="top")
     _, account = st.columns([5, 1])

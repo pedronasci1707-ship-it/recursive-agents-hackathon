@@ -124,6 +124,14 @@ a { color: var(--cobalt); }
 .hero > .ms { position: absolute; right: 26px; top: 26px; font-size: 64px; opacity: 1; color: var(--ink);
               background: #fff; border: 2px solid var(--ink); border-radius: 50%; padding: 12px; transform: rotate(-12deg); }
 .hero .scribble { color: var(--sun); font-size: 1.1rem; margin-top: 18px; }
+.landing-title { font-size: 3.4rem; font-weight: 900; letter-spacing: -0.05em; line-height: 1; margin: 0 0 18px; color: var(--ink); }
+.landing-title em { font-family: 'Averia Serif Libre', Georgia, serif; font-style: italic; font-weight: 700; letter-spacing: -0.01em; }
+.landing-title em:first-of-type { color: var(--cobalt); }
+.landing-title em:last-of-type { color: var(--tomato); }
+.handoff { background: #fff; border: 2px solid var(--ink); border-radius: 28px; box-shadow: 6px 6px 0 var(--ink);
+           padding: 14px 18px 8px; }
+.handoff img { width: 100%; display: block; }
+.handoff + .scribble, .landing-title ~ .scribble { margin-top: 16px; color: var(--cobalt); }
 .pill { display: inline-flex; align-items: center; gap: 6px; font-size: .8rem; font-weight: 700; padding: 5px 12px;
         border-radius: 999px; background: var(--mint); color: var(--ink); border: 2px solid var(--ink); }
 .pill.warn { background: var(--peach); color: var(--ink); }

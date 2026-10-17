@@ -36,6 +36,8 @@ prefs = st.session_state.setdefault(f"prefs_{rid}", {
 def build_page():
     c.page_header("Move-in kit", f"Hi {req['buyer']}, let's set up your room",
                   "Tell us about your move-in. We build a kit from items in stock and verify it in seconds.")
+    if st.session_state.pop(f"no_kit_{rid}", False):  # e.g. a new account while live runs are rate-limited
+        st.info("Our agents are busy with other students right now. Try **Build my kit** again in a few seconds.")
     form_col, info_col = st.columns([1.5, 1], gap="large")
     with form_col, st.container(border=True):
         housing = st.segmented_control("Where are you living?", ["Dorm room", "Apartment"], default=prefs["housing"])
@@ -75,8 +77,10 @@ def build_page():
                 shown.add(msg)
                 box.write(f":material/check_small: {msg}")
 
-        state.run_agents(on_event, live=state.has_api_key(), custom_request=custom)
+        res = state.run_agents(on_event, live=state.has_api_key(), custom_request=custom)
         box.update(label="Your kit is ready", state="complete")
+    if store.kit_for(res, rid) is None:
+        st.session_state[f"no_kit_{rid}"] = True
     st.session_state.pop(f"order_{rid}", None)
     st.rerun()
 
