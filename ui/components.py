@@ -161,7 +161,7 @@ footer {{ visibility: hidden; }}
 CUSTOMER_CSS = """
 <style>
 [data-testid="stSidebar"], [data-testid="stSidebarCollapsedControl"], [data-testid="stExpandSidebarButton"] { display: none; }
-.block-container { max-width: 1160px; padding-top: 2.2rem; }
+.block-container { max-width: 1160px; padding-top: 4.6rem; }
 </style>
 """
 

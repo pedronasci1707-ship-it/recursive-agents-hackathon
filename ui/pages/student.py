@@ -45,7 +45,8 @@ def build_page():
                          default=prefs["needs"], format_func=lambda k: c.LABEL[k])
         go = st.button("Build my kit", type="primary", icon=":material/auto_awesome:", width="stretch")
     with info_col:
-        st.html(f"""
+        info = st.empty()
+        info.html(f"""
         <div class="feature">{c.icon("tune")}<h4>1 · Tell us what you need</h4>
           <p>Your room, your budget, your move-in date.</p></div>
         <div class="feature">{c.icon("fact_check")}<h4>2 · We build &amp; verify</h4>
@@ -60,7 +61,7 @@ def build_page():
     prefs.update(housing=housing or prefs["housing"], move_in=move_in, budget=budget, needs=list(needs))
     custom = {**req, "budget": budget, "needs": list(needs),
               "profile": f"{req['profile']}. Living in: {prefs['housing']}. Moving in {move_in:%b %d}"}
-    with st.status("Building your kit…", expanded=True) as box:
+    with info.container(), st.status("Building your kit…", expanded=True) as box:
         shown = set()
 
         def on_event(e):
