@@ -116,6 +116,11 @@ def plan_kit(request, available_items, feedback=None, shared_notes=None):
         user += f"Preferred colors: {', '.join(request['colors'])}\n"
     if request.get("style"):
         user += f"Room style: {request['style']}\n"
+    for cat, p in (request.get("item_prefs") or {}).items():  # per-item choices override the whole-kit ones
+        wants = [f"minimum quality {rules.QUALITY_LABEL[p['min_condition']]}" if p.get("min_condition") in rules.QUALITY_LABEL else "",
+                 f"color {p['color']}" if p.get("color") else "", f"style {p['style']}" if p.get("style") else ""]
+        if any(wants):
+            user += f"For the {cat}: {', '.join(w for w in wants if w)}\n"
     user += f"\nAvailable inventory (snapshot):\n{_inventory_table(available_items)}"
     if shared_notes:
         user += "\n\nTeam notes from the Verifier (apply them):\n- " + "\n- ".join(shared_notes)

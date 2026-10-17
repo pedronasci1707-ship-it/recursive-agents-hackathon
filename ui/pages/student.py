@@ -35,6 +35,28 @@ QUALITY_OPTIONS = ["C", "B", "A"]   # Fair, Good, Excellent: "at least this good
 
 
 # ---------------------------------------------------------------- build flow
+def item_pref_rows(needs):
+    """One row per needed item: its own minimum quality, color and style."""
+    saved = prefs.get("item_prefs", {})
+    out = {}
+    for cat in needs:
+        p = saved.get(cat, {})
+        with st.container(border=True):
+            st.markdown(f"**{c.LABEL[cat]}**")
+            q_col, c_col, s_col = st.columns(3)
+            q = q_col.selectbox("Quality", QUALITY_OPTIONS, key=f"ip_q_{rid}_{cat}",
+                                index=QUALITY_OPTIONS.index(p.get("min_condition", "B")),
+                                format_func=lambda q: f"{c.CONDITION[q]}{'+' if q != 'A' else ''}")
+            colors = [None] + [k for k in rules.COLORS if k != "other"]
+            col = c_col.selectbox("Color", colors, key=f"ip_c_{rid}_{cat}", index=colors.index(p.get("color")),
+                                  format_func=lambda k: "Any" if k is None else k.capitalize())
+            styles = [None] + rules.STYLES
+            sty = s_col.selectbox("Style", styles, key=f"ip_s_{rid}_{cat}", index=styles.index(p.get("style")),
+                                  format_func=lambda k: "Any" if k is None else k.capitalize())
+        out[cat] = {"min_condition": q, "color": col, "style": sty}
+    return out
+
+
 def build_page():
     c.page_header("Move-in kit", f"Hi {req['buyer']}, let's set up your room",
                   "Tell us about your move-in. We build a kit from items in stock and verify it in seconds.")
@@ -46,14 +68,22 @@ def build_page():
         budget = st.slider("Budget", 80, 400, prefs["budget"], step=10, format="$%d")
         needs = st.pills("What do you need?", list(c.LABEL)[:-1], selection_mode="multi",
                          default=prefs["needs"], format_func=lambda k: c.LABEL[k])
-        quality = st.segmented_control(
-            "Minimum quality", QUALITY_OPTIONS, default=prefs.get("min_condition", "B"),
-            format_func=lambda q: f"{c.CONDITION[q]}{' or better' if q != 'A' else ' (like new)'}",
-            help="Our agents never put an item below this quality in your kit.")
-        colors = st.pills("Colors you like", [k for k in rules.COLORS if k != "other"], selection_mode="multi",
-                          default=prefs.get("colors", []), format_func=str.capitalize)
-        style = st.segmented_control("Room style", rules.STYLES, default=prefs.get("style"),
-                                     format_func=str.capitalize)
+        mode = st.segmented_control("Select by", ["kit", "item"], default=prefs.get("mode", "kit"),
+                                    format_func=lambda m: "Whole kit" if m == "kit" else "Individual item",
+                                    help="Whole kit: one quality, color and style for everything. "
+                                         "Individual item: choose them for each item.")
+        quality, colors, style, item_prefs = "C", [], None, {}
+        if mode != "item":
+            quality = st.segmented_control(
+                "Minimum quality", QUALITY_OPTIONS, default=prefs.get("min_condition", "B"),
+                format_func=lambda q: f"{c.CONDITION[q]}{' or better' if q != 'A' else ' (like new)'}",
+                help="Our agents never put an item below this quality in your kit.")
+            colors = st.pills("Colors you like", [k for k in rules.COLORS if k != "other"], selection_mode="multi",
+                              default=prefs.get("colors", []), format_func=str.capitalize)
+            style = st.segmented_control("Room style", rules.STYLES, default=prefs.get("style"),
+                                         format_func=str.capitalize)
+        else:
+            item_prefs = item_pref_rows(needs or [])
         go = st.button("Build my kit", type="primary", icon=":material/auto_awesome:", width="stretch")
     with info_col:
         info = st.empty()
@@ -70,9 +100,9 @@ def build_page():
         st.warning("Pick at least one item you need.")
         return
     prefs.update(move_in=move_in, budget=budget, needs=list(needs), min_condition=quality or "C",
-                 colors=list(colors), style=style)
+                 colors=list(colors), style=style, mode=mode or "kit", item_prefs=item_prefs)
     custom = {**req, "budget": budget, "needs": list(needs), "min_condition": quality or "C",
-              "colors": list(colors), "style": style,
+              "colors": list(colors), "style": style, "item_prefs": item_prefs,
               "profile": f"{req['profile']}. Moving in {move_in:%b %d}"}
     with info.container(), st.status("Building your kit…", expanded=True) as box:
         shown = set()
@@ -157,8 +187,9 @@ with left:
         if "quality the student asked for" in caught:
             st.markdown("- We swapped an item that was below the quality you asked for.")
         min_q = prefs.get("min_condition")
-        quality_row = [("min_quality", f"Every item is {c.CONDITION[min_q]} quality or better")] \
-            if any(x["name"] == "min_quality" for x in kit["checks"]) and min_q in c.CONDITION else []
+        quality_text = ("Every item meets the quality you chose for it" if prefs.get("mode") == "item"
+                        else f"Every item is {c.CONDITION.get(min_q, 'the chosen')} quality or better")
+        quality_row = [("min_quality", quality_text)] if any(x["name"] == "min_quality" for x in kit["checks"]) else []
         for chk, text in quality_row + [("available_now", "Every item is in stock and reserved for you"),
                           ("no_safety_recalls", "No recalled models"),
                           ("covers_needs", "Covers everything you asked for"),

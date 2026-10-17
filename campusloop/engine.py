@@ -297,14 +297,24 @@ def _outside_buyer(plans, inventory):
 
 
 def _fallback_plan(request, snapshot):
-    """Naive plan used only when the model call fails: the priciest item per needed category."""
+    """Plan used only when the model call fails: per needed category, a safe item that meets the minimum quality,
+    preferring the student's color/style, then better condition, then the higher price."""
+    recalls = rules.recall_list()
     ids = []
     for need in request["needs"]:
-        min_rank = rules.QUALITY_RANK.get(request.get("min_condition"), 0)
-        options = [i for i in snapshot if i["category"] == need and rules.QUALITY_RANK.get(i["condition"], 0) >= min_rank]
+        min_rank = rules.QUALITY_RANK.get(rules.min_quality_for(request, need), 0)
+        look = (request.get("item_prefs") or {}).get(need, {})
+        colors = [look["color"]] if look.get("color") else request.get("colors") or []
+        style = look.get("style") or request.get("style")
+        options = [i for i in snapshot if i["category"] == need
+                   and rules.QUALITY_RANK.get(i["condition"], 0) >= min_rank
+                   and not rules.recall_reason(i.get("model"), recalls)]
         if options:
-            ids.append(max(options, key=lambda i: i["resale_price"])["id"])
-    return {"item_ids": ids, "rationale": "Fallback plan (model unavailable)."}
+            best = max(options, key=lambda i: ((i.get("color") in colors) + (i.get("style") == style),
+                                               rules.QUALITY_RANK.get(i["condition"], 0), i["resale_price"]))
+            ids.append(best["id"])
+    return {"item_ids": ids, "rationale": "Fallback plan (model unavailable): safe items that meet your quality, "
+                                          "closest to your colors and style."}
 
 
 def _parallel(fn, args):

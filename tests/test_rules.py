@@ -63,6 +63,26 @@ def test_min_quality_is_a_hard_rule_when_set():
     assert not issues and "min_quality" not in {c["name"] for c in checks}
 
 
+def test_per_item_quality_overrides_the_kit_minimum():
+    inv = {"F": item("F", "mini_fridge", 90), "L": item("L", "desk_lamp", 20)}
+    inv["F"]["condition"], inv["L"]["condition"] = "B", "C"
+    req = {**REQ, "item_prefs": {"mini_fridge": {"min_condition": "A"}}}   # only the fridge must be Excellent
+    _, issues, _ = rules.verify_kit(req, ["F", "L"], inv, RECALLS)
+    assert len(issues) == 1 and "F (F) is Good" in issues[0]
+    inv["F"]["condition"] = "A"
+    _, issues, _ = rules.verify_kit(req, ["F", "L"], inv, RECALLS)
+    assert not issues                                                       # the Fair lamp is fine
+
+
+def test_fallback_plan_skips_recalls_and_respects_item_prefs():
+    from campusloop.engine import _fallback_plan
+    snapshot = [i for i in rules.load("catalog.json") if i["status"] == "available"]
+    req = {**REQ, "needs": ["mini_fridge", "desk_chair"],
+           "item_prefs": {"mini_fridge": {"min_condition": "A"}, "desk_chair": {"color": "blue"}}}
+    ids = _fallback_plan(req, snapshot)["item_ids"]
+    assert ids == ["FRIDGE-01", "CHAIR-02"]   # FRIDGE-03 is also A but recalled; CHAIR-02 is the blue one
+
+
 def test_price_listing_scales_with_condition():
     a, b = rules.price_listing("mini_fridge", "A"), rules.price_listing("mini_fridge", "B")
     assert a["resale_price"] > b["resale_price"] > 0

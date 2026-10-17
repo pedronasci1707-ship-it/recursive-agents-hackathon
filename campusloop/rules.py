@@ -86,6 +86,12 @@ def kit_totals(items):
     }
 
 
+def min_quality_for(request, category):
+    """Minimum quality for one category: the per-item choice if the student made one, else the whole-kit one."""
+    q = (request.get("item_prefs") or {}).get(category, {}).get("min_condition") or request.get("min_condition")
+    return q if q in QUALITY_RANK else None
+
+
 def verify_kit(request, item_ids, inventory, recalls):
     """Check a proposed kit against live inventory and business rules.
 
@@ -124,13 +130,13 @@ def verify_kit(request, item_ids, inventory, recalls):
           "; ".join(f"{i['id']} (model {i['model']}) is under a safety recall: {r}" for i, r in recalled)
           if recalled else "No recalled models")
 
-    min_q = request.get("min_condition")
-    if min_q in QUALITY_RANK:  # quality is a hard rule when the student sets it
-        low = [i for i in items if QUALITY_RANK.get(i["condition"], 0) < QUALITY_RANK[min_q]]
+    if any(min_quality_for(request, n) for n in request["needs"]):  # hard rule when the student sets it
+        low = [(i, q) for i in items if (q := min_quality_for(request, i["category"]))
+               and QUALITY_RANK.get(i["condition"], 0) < QUALITY_RANK[q]]
         check("min_quality", not low,
               "; ".join(f"{i['id']} ({i['name']}) is {QUALITY_LABEL.get(i['condition'], i['condition'])}, "
-                        f"below the {QUALITY_LABEL[min_q]} quality the student asked for" for i in low)
-              if low else f"Every item is {QUALITY_LABEL[min_q]} quality or better")
+                        f"below the {QUALITY_LABEL[q]} quality the student asked for" for i, q in low)
+              if low else "Every item meets the quality the student asked for")
 
     covered = {i["category"] for i in items}
     missing = [n for n in request["needs"] if n not in covered]
