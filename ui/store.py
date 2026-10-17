@@ -83,11 +83,51 @@ def final_check(res, kit):
     problems = []
     for item in kit["items"]:
         live = inv.get(item["id"])
-        if not live or kit["request_id"] not in (live.get("reserved_for") or ""):
+        if not live or live.get("status") != "reserved" or kit["request_id"] not in (live.get("reserved_for") or ""):
             problems.append(f"{item['name']} is no longer reserved for you.")
         elif not is_safe(live):
             problems.append(f"{item['name']} didn't pass our safety checks.")
     return problems
+
+
+def is_held(res, kit):
+    """True while every item of the kit is still reserved for this student."""
+    inv = inventory(res)
+    return bool(kit["items"]) and all(
+        inv.get(i["id"], {}).get("status") == "reserved"
+        and kit["request_id"] in (inv[i["id"]].get("reserved_for") or "") for i in kit["items"])
+
+
+def release(res, kit):
+    """Checkout abandoned: give the kit's held items back to the shop so other students can buy them."""
+    inv = inventory(res)
+    for item in kit["items"]:
+        live = inv.get(item["id"])
+        if live and live["status"] == "reserved" and kit["request_id"] in (live.get("reserved_for") or ""):
+            live["status"], live["reserved_for"] = "available", None
+
+
+def hold_again(res, kit):
+    """Re-reserve the same items after a hold ended, only if each one is still free (never takes another
+    student's item). Returns (ok, messages)."""
+    inv = inventory(res)
+    tag = f"{kit['buyer']} ({kit['request_id']})"
+    taken = [i["name"] for i in kit["items"]
+             if not (live := inv.get(i["id"])) or not is_safe(live)
+             or (live["status"] != "available" and kit["request_id"] not in (live.get("reserved_for") or ""))]
+    if taken:
+        return False, [f"{name} was just taken by someone else." for name in taken]
+    for item in kit["items"]:
+        inv[item["id"]]["status"], inv[item["id"]]["reserved_for"] = "reserved", tag
+    return True, []
+
+
+def mark_sold(res, kit):
+    """Paid: the items leave the shop for good."""
+    inv = inventory(res)
+    for item in kit["items"]:
+        if item["id"] in inv:
+            inv[item["id"]]["status"] = "sold"
 
 
 def swap(res, kit, old_id, new_id):

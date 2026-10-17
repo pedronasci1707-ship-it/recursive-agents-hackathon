@@ -1,7 +1,7 @@
 """My kit: build a move-in kit, adjust it, book delivery. Customer-facing: no agent internals."""
 
 import time
-from datetime import date
+from datetime import date, datetime, timedelta
 
 import streamlit as st
 
@@ -10,6 +10,7 @@ from ui import components as c
 from ui import state, store
 
 WINDOWS = ["8–11 am", "12–3 pm", "4–7 pm"]
+HOLD_MINUTES = 10   # how long items stay reserved at checkout before going back to the shop
 FRIENDLY = {  # agent event -> what the customer sees while the kit is being built
     "plan": "Picking items that fit your room and budget",
     "conflict": "An item just sold to someone else, finding a replacement",
@@ -65,7 +66,9 @@ def _card_problems(name, address, number, expiry, cvc):
 
 def checkout(kit, order_no):
     """Name, delivery address and card. On 'Pay', the agents re-check the kit before the order is confirmed."""
+    until = st.session_state[f"hold_until_{rid}"]
     st.markdown("**Checkout**")
+    st.html(c.pill(f"Your items are held for you until {until:%I:%M %p}".replace(" 0", " "), ico="timer"))
     st.caption(f":material/info: {TEST_CARD_HELP}")
     name = st.text_input("Full name", placeholder="Ana Souza", key=f"co_name_{rid}")
     address = st.text_input("Delivery address", placeholder="Wolf Village, Bldg C, Room 214, Raleigh NC",
@@ -74,8 +77,17 @@ def checkout(kit, order_no):
     exp_col, cvc_col = st.columns(2)
     expiry = exp_col.text_input("Expiry", placeholder="MM / YY", max_chars=7, key=f"co_exp_{rid}")
     cvc = cvc_col.text_input("CVC", placeholder="123", max_chars=4, type="password", key=f"co_cvc_{rid}")
-    if not st.button(f"Pay ${kit['price']:.0f}", type="primary", icon=":material/lock:", width="stretch"):
+    pay = st.button(f"Pay ${kit['price']:.0f}", type="primary", icon=":material/lock:", width="stretch")
+    if st.button("Cancel and release my items", icon=":material/close:", width="stretch"):
+        store.release(res, kit)
+        st.toast("Items released back to the shop", icon=":material/undo:")
+        st.rerun()
+    if not pay:
         st.caption(f"Delivered on move-in day, {prefs['move_in']:%B %d}. Free cancellation until 48h before.")
+        return
+    if datetime.now() > until:   # the hold ran out while the form was open
+        store.release(res, kit)
+        st.error("Your hold expired and the items went back to the shop. You were not charged.")
         return
     digits = "".join(ch for ch in number if ch.isdigit())
     problems = _card_problems(name, address, digits, expiry, cvc)
@@ -101,6 +113,8 @@ def checkout(kit, order_no):
         box.write(":material/local_shipping: Scheduling delivery for move-in day")
         time.sleep(0.7)
         box.update(label="Payment approved · order confirmed", state="complete")
+    store.mark_sold(res, kit)
+    st.session_state.pop(f"hold_until_{rid}", None)
     brand = {"4": "Visa", "5": "Mastercard", "3": "Amex"}.get(digits[0], "Card")
     # Only the last 4 digits are kept, never the full card number or CVC.
     st.session_state[f"order_{rid}"] = {"date": prefs["move_in"], "window": WINDOWS[1], "where": address.strip(),
@@ -206,7 +220,9 @@ def build_page():
 
 
 if kit is None or st.session_state.get(f"rebuild_{rid}"):
-    st.session_state.pop(f"rebuild_{rid}", None)
+    if kit and st.session_state.pop(f"rebuild_{rid}", None) and not st.session_state.get(f"order_{rid}"):
+        store.release(res, kit)   # starting over gives the held items back to the shop
+    st.session_state.pop(f"hold_until_{rid}", None)
     build_page()
     st.stop()
 
@@ -214,6 +230,18 @@ if kit is None or st.session_state.get(f"rebuild_{rid}"):
 verified = kit["status"] == "verified"
 order = st.session_state.get(f"order_{rid}")
 order_no = f"CL-{res['run_id'][:4].upper()}{rid[-1]}"
+
+# Checkout hold: the verified kit's items stay reserved for this student for HOLD_MINUTES. If they don't pay in
+# time (or cancel), the items go back to the shop for other students.
+hold_key = f"hold_until_{rid}"
+if verified and not order:
+    if store.is_held(res, kit) and hold_key not in st.session_state:
+        st.session_state[hold_key] = datetime.now() + timedelta(minutes=HOLD_MINUTES)
+    if store.is_held(res, kit) and datetime.now() > st.session_state[hold_key]:
+        store.release(res, kit)
+held = verified and not order and store.is_held(res, kit)
+if verified and not order and not held:
+    st.session_state.pop(hold_key, None)
 
 head, status_col = st.columns([4, 1], vertical_alignment="bottom")
 with head:
@@ -300,8 +328,20 @@ with right:
                 <div>Delivery {order['date']:%A, %B %d} · {order['window']}</div>
                 <div>{c.esc(order.get('name', ''))} · {c.esc(order['where'])}</div></div>""")
             st.caption("A receipt would be emailed to you. This is a demo: no real payment was made.")
-        else:
+        elif held:
             checkout(kit, order_no)
+        else:
+            st.markdown("**Checkout**")
+            st.warning("Your hold ended, so these items went back to the shop for other students. "
+                       "You were not charged.", icon=":material/timer_off:")
+            if st.button("Hold my items again", type="primary", icon=":material/lock_clock:", width="stretch"):
+                ok, msgs = store.hold_again(res, kit)
+                if ok:
+                    st.toast(f"Items held for {HOLD_MINUTES} minutes", icon=":material/timer:")
+                    st.rerun()
+                for m in msgs:
+                    st.error(m)
+                st.info("Some items were taken. Swap them or start over to rebuild your kit.")
     if not order and st.button("Start over with new preferences", icon=":material/restart_alt:", width="stretch"):
         st.session_state[f"rebuild_{rid}"] = True
         st.rerun()
