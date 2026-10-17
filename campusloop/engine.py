@@ -117,7 +117,8 @@ def _run_intake(listings, inventory, recalls, emit):
                                 f"resell at ${item['resale_price']}")
             emit("Intake Agent", "intake",
                  f"{listing['id']} → {item['id']} {item['name']} (condition {item['condition']}): "
-                 f"offer seller ${item['acquisition_cost']}, resell at ${item['resale_price']}")
+                 f"offer seller ${item['acquisition_cost']}, resell at ${item['resale_price']}",
+                 item={k: item[k] for k in ("id", "name", "category", "resale_price")})
         out.append(entry)
     return out
 
@@ -144,7 +145,7 @@ def _build_kits(requests, inventory, recalls, emit, simulate_outside_buyer, max_
         ids = plan["item_ids"]
         price = sum(inventory[i]["resale_price"] for i in ids if i in inventory)
         emit(f"Kit Agent · {r['buyer']}", "plan", f"Proposes {', '.join(ids)} (${price:.0f}) · {plan['rationale']}",
-             item_ids=ids)
+             item_ids=ids, buyer=r["buyer"])
 
     def verify_and_commit(r, plan, last_try):
         """Verify one plan against live inventory; reserve on success. True when the kit is done."""
@@ -160,12 +161,15 @@ def _build_kits(requests, inventory, recalls, emit, simulate_outside_buyer, max_
                 item["status"], item["reserved_for"] = "reserved", f"{r['buyer']} ({r['id']})"
             kit["status"] = "verified"
             emit("Verifier", "verify_pass",
-                 f"{r['buyer']}'s kit passed all {len(checks)} checks: ${kit['price']:.0f}, margin {kit['margin_pct']:.0f}%")
-            emit("Controller", "reserve", f"Reserved {', '.join(i['id'] for i in items)} for {r['buyer']}")
+                 f"{r['buyer']}'s kit passed all {len(checks)} checks: ${kit['price']:.0f}, margin {kit['margin_pct']:.0f}%",
+                 buyer=r["buyer"], item_ids=[i["id"] for i in items])
+            emit("Controller", "reserve", f"Reserved {', '.join(i['id'] for i in items)} for {r['buyer']}",
+                 buyer=r["buyer"])
         else:
             conflict = any("already reserved" in x for x in issues)
             emit("Verifier", "conflict" if conflict else "verify_fail",
-                 f"{r['buyer']}'s kit REJECTED: " + " | ".join(issues))
+                 f"{r['buyer']}'s kit REJECTED: " + " | ".join(issues),
+                 buyer=r["buyer"], issues=issues)
             kit["status"] = "needs_approval" if soft_only else "failed"
             feedback[r["id"]] = issues
             for item in items:
@@ -175,7 +179,8 @@ def _build_kits(requests, inventory, recalls, emit, simulate_outside_buyer, max_
                     emit("Controller", "info", f"Broadcast to all Kit Agents: {note}")
             if not last_try:
                 emit("Controller", "replan",
-                     f"Not done yet: sending the Verifier's feedback back to Kit Agent · {r['buyer']} to replan")
+                     f"Not done yet: sending the Verifier's feedback back to Kit Agent · {r['buyer']} to replan",
+                     buyer=r["buyer"])
         kit["items"] = [copy.deepcopy(i) for i in items]
         return not issues
 
@@ -213,11 +218,12 @@ def _build_kits(requests, inventory, recalls, emit, simulate_outside_buyer, max_
         kit = kits[r["id"]]
         if kit["status"] == "needs_approval":
             emit("Controller", "escalate",
-                 f"{r['buyer']}: out of attempts and the only issue is a small budget overrun; asking a human to approve")
+                 f"{r['buyer']}: out of attempts and the only issue is a small budget overrun; asking a human to approve",
+                 buyer=r["buyer"])
         else:
             emit("Controller", "escalate",
                  f"{r['buyer']}: still failing after {kit['attempts']} attempts; escalating to a human "
-                 "instead of shipping a bad kit")
+                 "instead of shipping a bad kit", buyer=r["buyer"])
     return list(kits.values())
 
 
