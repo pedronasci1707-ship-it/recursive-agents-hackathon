@@ -25,8 +25,11 @@ ID_PREFIX = {
 OUTSIDE_BUYER = "walk-in buyer (outside CampusLoop)"
 
 
-def run(on_event=None, simulate_outside_buyer=True, max_attempts=3):
-    """Run the whole agent team once. Returns the result dict described in docs/CONTRACT.md."""
+def run(on_event=None, simulate_outside_buyer=True, max_attempts=3, requests=None, listings=None):
+    """Run the whole agent team once. Returns the result dict described in docs/CONTRACT.md.
+
+    `requests` / `listings` override the demo data (e.g. a student's custom kit request).
+    """
     USAGE.clear()
     started = time.time()
     started_at = _now()
@@ -40,8 +43,8 @@ def run(on_event=None, simulate_outside_buyer=True, max_attempts=3):
             on_event(event)
 
     inventory = {i["id"]: i for i in rules.load("catalog.json")}
-    requests = rules.load("requests.json")
-    listings = rules.load("intake.json")
+    requests = requests if requests is not None else rules.load("requests.json")
+    listings = listings if listings is not None else rules.load("intake.json")
     recalls = rules.recall_list()
 
     emit("Controller", "info",

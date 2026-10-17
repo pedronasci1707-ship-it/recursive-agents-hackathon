@@ -3,32 +3,49 @@ import streamlit as st
 from ui import components as c
 from ui import state
 
-c.hero("♻️ CampusLoop", "Move-out leftovers, move-in ready. Verified kits for students, built by AI agents.")
+ROLE_LABEL = {
+    "student": ("school", "Incoming student"),
+    "seller": ("sell", "Moving out"),
+    "admin": ("admin_panel_settings", "CampusLoop admin"),
+}
 
-left, right = st.columns([1.1, 1], gap="large")
+st.write("")
+left, right = st.columns([1.35, 1], gap="large")
 
 with left:
-    st.markdown("### Sign in")
-    with st.form("login", border=True):
-        email = st.text_input("University email", placeholder="you@ncsu.edu")
+    st.html(f"""
+    <div class="hero" style="min-height: 430px; display:flex; flex-direction:column; justify-content:flex-end">
+      <div class="pill" style="background:rgba(255,255,255,.18);color:#fff;width:fit-content;margin-bottom:16px">
+        {c.icon("verified_user")}Every kit verified before it ships</div>
+      <h1>Move-in ready.<br>Move-out easy.</h1>
+      <p>Pre-loved mini-fridges, desks, lamps and kitchen basics from students who just moved out,
+         inspected, recall-checked and delivered to your room on move-in day.</p>
+      {c.icon("autorenew")}
+    </div>""")
+
+with right:
+    st.html('<div class="eyebrow">Welcome</div><div class="page-title">Sign in to CampusLoop</div>'
+            '<p class="page-sub">Use your university email.</p>')
+    with st.form("login", border=False):
+        email = st.text_input("University email", placeholder="you@ncsu.edu", label_visibility="collapsed")
         if st.form_submit_button("Continue", type="primary", width="stretch"):
             if email.strip().lower() in state.USERS:
                 state.sign_in(email.strip().lower())
                 st.rerun()
-            st.error("Unknown account. Use one of the demo accounts on the right.")
-    st.caption("Demo sign-in: no passwords, nothing is stored.")
-
-with right:
-    st.markdown("### Demo accounts")
+            st.error("We couldn't find that account. Try one of the demo accounts below.")
+    st.caption("DEMO ACCOUNTS · no password needed")
     for email, u in state.USERS.items():
-        role = {"student": "Incoming student · move-in kit", "seller": "Moving out · sell items",
-                "ops": "CampusLoop operations · agents console"}[u["role"]]
-        if st.button(f"**{u['name']}**  \n{role}", key=f"login_{email}", width="stretch"):
+        ico, role = ROLE_LABEL[u["role"]]
+        if st.button(f"**{u['name']}** · {role}", key=f"login_{email}", icon=f":material/{ico}:", width="stretch"):
             state.sign_in(email)
             st.rerun()
 
-st.divider()
-a, b, d = st.columns(3)
-a.markdown("**🧊 Move-in kits**  \nFridge, lamp, chair, kitchen basics: picked for your room and budget.")
-b.markdown("**🛡️ Verified by agents**  \nEvery kit is checked for availability, safety recalls and price before it ships.")
-d.markdown("**💸 Sell before you leave**  \nGet an instant offer for the things you can't take home.")
+st.write("")
+cols = st.columns(4)
+for col, (ico, title, text) in zip(cols, [
+    ("inventory_2", "Kits for your room", "Fridge, lamp, chair, kitchen basics: picked for your room and budget."),
+    ("verified_user", "Checked twice", "Availability, safety recalls and price are verified before we confirm."),
+    ("savings", "Up to 60% off new", "Quality second-hand at student prices, delivered on move-in day."),
+    ("sell", "Sell before you leave", "Snap a photo, get an instant offer, we pick it up."),
+]):
+    col.html(f'<div class="feature">{c.icon(ico)}<h4>{title}</h4><p>{text}</p></div>')

@@ -30,6 +30,7 @@ MODELS = {
     "worker": os.getenv("MODEL_WORKER", "nvidia/Nemotron-3.5-Lightning-30B-A3B"),
     "fast": os.getenv("MODEL_FAST", "deepseek-ai/Deepseek-V4-Flash"),
     "tools": os.getenv("MODEL_TOOLS", "openai/gpt-oss-120b"),
+    "vision": os.getenv("MODEL_VISION", "google/gemma-4-31b-it"),
 }
 
 # Running totals per model: prompt / completion / cached tokens and request count.

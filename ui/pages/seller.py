@@ -1,63 +1,112 @@
+"""Sell before you leave: photo or text -> instant offer -> pickup. Customer-facing."""
+
+from datetime import date
+
 import streamlit as st
 
 from campusloop import agents, rules
 from ui import components as c
 from ui import state
 
+WINDOWS = ["8–11 am", "12–3 pm", "4–7 pm"]
+
 u = state.user()
-name = u["name"] if u["role"] == "seller" else "there"
-c.hero(f"Moving out, {name}? Sell before you leave", "Describe an item the way you'd post it. Our Intake Agent "
-       "reads it, checks it for safety recalls and makes you an instant offer.")
+name = u["name"]
+mine = st.session_state.setdefault("my_items", [])
 
-examples = {f"{l['seller']}: {l['text'][:60]}…": l["text"] for l in rules.load("intake.json")}
-left, right = st.columns([1.2, 1], gap="large")
+c.page_header("Sell before you leave", f"Moving out, {name}?",
+              "Snap a photo or describe your item. Get an instant offer and we pick it up before you go.")
+tab_new, tab_mine = st.tabs(["Sell an item", f"My items ({len(mine)})"])
 
-with left:
-    pick = st.selectbox("Start from an example (or write your own)", ["Write my own"] + list(examples))
-    with st.form("listing", border=True):
-        text = st.text_area("Your listing", value=examples.get(pick, ""), height=130,
+with tab_new:
+    left, right = st.columns([1.15, 1], gap="large")
+    with left, st.container(border=True):
+        photo = st.file_uploader("Photo of the item (optional)", type=["png", "jpg", "jpeg", "webp"])
+        if photo:
+            st.image(photo, width=220)
+        examples = {f"{l['text'][:58]}…": l["text"] for l in rules.load("intake.json")}
+        pick = st.selectbox("Or start from an example", ["Write my own"] + list(examples))
+        text = st.text_area("Describe it", value=examples.get(pick, ""), height=110,
                             placeholder="e.g. Black mini fridge, 2 years old, works great, model XYZ-12")
-        submitted = st.form_submit_button("Get instant offer", type="primary", width="stretch")
-    if submitted and text.strip():
-        if not state.has_api_key():
-            st.error("Live offers need a Crusoe API key on the server.")
-            st.stop()
-        with st.spinner("Our Intake Agent is reading your listing…"):
-            try:
-                parsed = agents.intake_listing({"seller": name, "text": text.strip()})
-            except agents.AgentError as e:
-                st.error(f"Our agent couldn't read that listing ({e}). Try adding the product type and condition.")
-                st.stop()
-        recall = rules.recall_reason(parsed.get("model"), rules.recall_list())
-        st.session_state.offer = {"parsed": parsed, "recall": recall, "accepted": False,
-                                  **rules.price_listing(parsed["category"], parsed["condition"])}
+        if st.button("Get my instant offer", type="primary", icon=":material/bolt:", width="stretch"):
+            if not text.strip() and not photo:
+                st.warning("Add a photo or a short description.")
+            elif not state.has_api_key():
+                st.error("Instant offers are offline right now. Please try again later.")
+            else:
+                with st.spinner("Looking at your item…"):
+                    try:
+                        parsed = agents.intake_listing({"seller": name, "text": text.strip()},
+                                                       image=photo.getvalue() if photo else None,
+                                                       mime=photo.type if photo else "image/jpeg")
+                        st.session_state.offer = {
+                            "parsed": parsed, "accepted": False,
+                            "recall": rules.recall_reason(parsed.get("model"), rules.recall_list()),
+                            **rules.price_listing(parsed["category"], parsed["condition"]),
+                        }
+                    except agents.AgentError:
+                        st.error("We couldn't read that. Try adding what the item is and its condition.")
 
-with right:
-    offer = st.session_state.get("offer")
-    if not offer:
-        st.info("Your offer will appear here.")
-    else:
-        p = offer["parsed"]
-        icon = c.ICONS.get(p["category"], "🏷️")
-        if offer["recall"]:
-            st.html(f'<div class="cl-card" style="border-color:#e5484d">'
-                    f'<h3 style="margin-top:0">⛔ We can\'t accept this item</h3>'
-                    f'<p><b>{icon} {c.esc(p.get("name", "Item"))}</b> · model {c.esc(p.get("model", ""))}</p>'
-                    f'<p>This model is under a safety recall: {c.esc(offer["recall"])}.</p>'
-                    f'<p style="opacity:.75">Please don\'t sell or keep using it. Follow the manufacturer\'s recall '
-                    f'instructions for a repair or refund.</p></div>')
+    with right:
+        offer = st.session_state.get("offer")
+        if not offer:
+            st.html(f"""<div class="offer" style="text-align:center;padding:40px 24px">
+                <div class="tile" style="--tint:var(--mint);margin:0 auto 14px">{c.icon("sell")}</div>
+                <h4 style="margin:0 0 6px">Your offer appears here</h4>
+                <p style="color:var(--muted);margin:0">We price by item type, condition and campus demand.
+                Recalled models can't be sold.</p></div>""")
         else:
-            st.html(f'<div class="cl-card"><div class="cl-product"><div class="cl-thumb">{icon}</div>'
-                    f'<div><div class="cl-pname">{c.esc(p.get("name", "Item"))}</div>'
-                    f'<div class="cl-pmeta">{c.CONDITION.get(p["condition"], p["condition"])} · '
-                    f'{c.esc(p["category"].replace("_", " "))}</div></div>'
-                    f'<div class="cl-price">${offer["acquisition_cost"]}</div></div>'
-                    f'<p style="margin:10px 0 0">Our offer: <b>${offer["acquisition_cost"]}</b>, paid at pickup. '
-                    f'Free pickup before you leave campus.</p></div>')
-            if offer["accepted"]:
-                st.success("Pickup scheduled! We'll text you a time window before your move-out day.")
-            elif st.button("Accept offer & schedule pickup", type="primary", width="stretch"):
-                offer["accepted"] = True
-                st.rerun()
-        with st.expander("What our agent understood"):
-            st.json({k: p.get(k) for k in ("name", "category", "condition", "model", "notes")})
+            p = offer["parsed"]
+            if p["category"] == "other" and p.get("name", "").lower() in ("", "unknown", "unnamed item"):
+                st.html(f"""<div class="offer reject"><h4 style="margin-top:0">{c.icon("help")} We couldn't recognize an item</h4>
+                    <p style="margin:0">{c.esc(p.get("notes", ""))} Try a clearer photo or add a short description.</p></div>""")
+            elif offer["recall"]:
+                st.html(f"""<div class="offer reject">
+                    <div style="display:flex;gap:14px;align-items:center">{c.tile(p["category"])}
+                    <div><b>{c.esc(p.get("name", "Item"))}</b><div style="color:var(--muted);font-size:.86rem">
+                    Model {c.esc(p.get("model", ""))}</div></div></div>
+                    <h4 style="margin:16px 0 6px">{c.icon("block")} We can't accept this item</h4>
+                    <p style="margin:0 0 8px">This model is under a safety recall: {c.esc(offer["recall"])}.</p>
+                    <p style="margin:0;color:var(--muted);font-size:.9rem">For your safety, please stop using it and
+                    follow the manufacturer's recall instructions for a repair or refund.</p></div>""")
+            else:
+                st.html(f"""<div class="offer">
+                    <div style="display:flex;gap:14px;align-items:center">{c.tile(p["category"])}
+                    <div><b>{c.esc(p.get("name", "Item"))}</b><div style="color:var(--muted);font-size:.86rem">
+                    {c.CONDITION.get(p["condition"], p["condition"])} condition · {c.LABEL.get(p["category"], "Item")}</div></div></div>
+                    <div style="margin:18px 0 4px;color:var(--muted);font-size:.85rem">Your instant offer</div>
+                    <div class="big">${offer["acquisition_cost"]}</div>
+                    <div style="color:var(--muted);font-size:.88rem;margin-top:6px">Paid when we pick it up · free pickup</div>
+                    </div>""")
+                if offer["accepted"]:
+                    st.success("Pickup booked. Find it under **My items**.")
+                else:
+                    with st.container(border=True):
+                        st.markdown("**Schedule pickup**")
+                        when = st.date_input("Pickup date", value=date(2027, 5, 7), format="MM/DD/YYYY")
+                        window = st.segmented_control("Time window", WINDOWS, default=WINDOWS[0], key="pickup_window")
+                        where = st.text_input("Pickup address", placeholder="e.g. Wolf Village, Bldg C, Room 214")
+                        if st.button("Accept offer & book pickup", type="primary", width="stretch"):
+                            if not where.strip():
+                                st.error("Add where we should pick it up.")
+                            else:
+                                offer["accepted"] = True
+                                mine.append({"name": p.get("name", "Item"), "category": p["category"],
+                                             "offer": offer["acquisition_cost"], "date": when,
+                                             "window": window or WINDOWS[0], "where": where})
+                                st.toast("Pickup booked", icon=":material/task_alt:")
+                                st.rerun()
+            with st.expander("What we understood from your listing"):
+                st.json({k: p.get(k) for k in ("name", "category", "condition", "model", "notes")})
+
+with tab_mine:
+    if not mine:
+        st.info("Items you sell will show up here with their pickup details.")
+    for item in mine:
+        with st.container(border=True):
+            row, status = st.columns([5, 1.2], vertical_alignment="center")
+            row.html(f"""<div class="line" style="border:none;padding:4px 0">{c.tile(item["category"])}
+                <div><div class="name">{c.esc(item["name"])}</div>
+                <div class="meta">Pickup {item['date']:%a, %b %d} · {item['window']} · {c.esc(item['where'])}</div></div>
+                <div class="price">${item['offer']}</div></div>""")
+            status.html(c.pill("Pickup booked", ico="event_available"))

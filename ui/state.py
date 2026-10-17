@@ -17,7 +17,7 @@ USERS = {
     "marcus@ncsu.edu": {"name": "Marcus", "role": "student", "request_id": "REQ-2"},
     "priya@ncsu.edu": {"name": "Priya", "role": "student", "request_id": "REQ-3"},
     "jake@ncsu.edu": {"name": "Jake", "role": "seller"},
-    "ops@campusloop.ai": {"name": "Ops team", "role": "ops"},
+    "admin@campusloop.ai": {"name": "Admin", "role": "admin"},
 }
 
 # Public deployment guard: live runs spend Crusoe credits.
@@ -70,14 +70,20 @@ def claim_live_run():
     return None
 
 
-def run_agents(on_event, live, chaos=True, max_attempts=3, speed=2.0):
-    """Run the real agents (live) or replay the recorded sample run with its original pacing."""
+def run_agents(on_event, live, chaos=True, max_attempts=3, speed=2.0, custom_request=None):
+    """Run the real agents (live) or replay the recorded sample run with its original pacing.
+
+    `custom_request` replaces the demo request with the same id (a student's own kit request).
+    """
     if live and (blocked := claim_live_run()):
         st.toast(blocked)
         live = False
     if live:
         from campusloop.engine import run
-        res = run(on_event=on_event, simulate_outside_buyer=chaos, max_attempts=max_attempts)
+        reqs = requests()
+        if custom_request:
+            reqs = [custom_request if r["id"] == custom_request["id"] else r for r in reqs]
+        res = run(on_event=on_event, simulate_outside_buyer=chaos, max_attempts=max_attempts, requests=reqs)
         st.session_state.source = "live run on Crusoe"
     else:
         res = json.loads(SAMPLE_RUN.read_text(encoding="utf-8"))

@@ -4,6 +4,7 @@ Each agent returns plain dicts. If a model call fails or returns unusable output
 the agent raises AgentError and the controller decides what to do.
 """
 
+import base64
 import json
 import os
 import re
@@ -55,8 +56,17 @@ Reply with ONLY a JSON object with these keys:
   "notes": one short sentence on anything a buyer should know."""
 
 
-def intake_listing(listing):
-    raw = _ask("fast", INTAKE_SYSTEM, f"Listing from {listing['seller']}:\n{listing['text']}", 1024)
+def intake_listing(listing, image=None, mime="image/jpeg"):
+    """Structure a move-out listing. With `image` (bytes), a vision model also reads the photo."""
+    text = f"Listing from {listing['seller']}:\n{listing.get('text') or '(no text, see the photo)'}"
+    if image:
+        uri = f"data:{mime};base64," + base64.b64encode(image).decode()
+        content = [{"type": "text", "text": text + "\nUse the photo to identify the item, its condition "
+                                                    "and any visible model number."},
+                   {"type": "image_url", "image_url": {"url": uri}}]
+        raw = _ask("vision", INTAKE_SYSTEM, content, 1024)
+    else:
+        raw = _ask("fast", INTAKE_SYSTEM, text, 1024)
     data = parse_json(raw)
     if data.get("category") not in rules.CATEGORIES:
         data["category"] = "other"
