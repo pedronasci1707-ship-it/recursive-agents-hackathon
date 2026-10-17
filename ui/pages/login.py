@@ -20,12 +20,10 @@ with left:
     <div class="handoff">
       <img src="data:image/svg+xml;base64,{HANDOFF}"
            alt="A student who is moving out hands a box of room essentials to a student who is moving in">
-    </div>
-    {c.scribble("made by students, for students ♥")}""")
+    </div>""")
 
 with right:
-    st.html('<div class="eyebrow">Welcome</div><div class="page-title">Your room, sorted.</div>'
-            '<p class="page-sub">Sell what you leave behind. Get what you need when you arrive.</p>')
+    st.html('<div style="height:64px"></div>')  # line the sign-in card up with the illustration
     with st.container(border=True):
         tab_in, tab_new = st.tabs(["Sign in", "Create account"])
         with tab_in:
@@ -65,4 +63,4 @@ for col, (icons, title, text) in zip(cols, [
     (["sell"], "Sell before you leave", "Snap a photo, get an instant offer, we pick it up."),
 ]):
     stickers = "".join(c.icon(i) for i in icons)
-    col.html(f'<div class="feature"><span class="stickers">{stickers}</span><h4>{title}</h4><p>{text}</p></div>')
+    col.html(f'<div class="feature same-height"><span class="stickers">{stickers}</span><h4>{title}</h4><p>{text}</p></div>')

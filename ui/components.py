@@ -205,6 +205,7 @@ a { color: var(--cobalt); }
                padding: 8px; display: inline-block; position: absolute; top: -24px; right: 18px; transform: rotate(12deg);
                box-shadow: 2px 2px 0 var(--ink); }
 [data-testid="stColumn"]:nth-child(even) .feature .ms { transform: rotate(-10deg); }
+.feature.same-height { min-height: 140px; }   /* landing cards side by side: same size whatever the text length */
 /* several stickers on one card edge (landing page) */
 .feature .stickers { position: absolute; top: -26px; right: 18px; display: flex; gap: 6px; }
 .feature .stickers .ms { position: static; }
