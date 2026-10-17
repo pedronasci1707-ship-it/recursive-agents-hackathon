@@ -17,6 +17,7 @@ PAGES = {
     "shop": st.Page("ui/pages/shop.py", title="Shop", url_path="shop"),
     "sell": st.Page("ui/pages/seller.py", title="Sell", url_path="sell"),
     "live": st.Page("ui/pages/live.py", title="Live: agents at work", icon=":material/bolt:", url_path="live"),
+    "flow": st.Page("ui/pages/flow.py", title="How it works", icon=":material/account_tree:", url_path="how-it-works"),
     "ops": st.Page("ui/pages/operations.py", title="Operations console", icon=":material/monitoring:",
                    url_path="operations"),
     "preview": st.Page("ui/pages/student.py", title="Storefront preview", icon=":material/storefront:",
@@ -26,7 +27,7 @@ PAGES = {
 BY_ROLE = {
     "student": ["kit", "shop", "sell"],
     "seller": ["sell", "shop"],
-    "admin": ["live", "ops", "preview"],
+    "admin": ["live", "flow", "ops", "preview"],
 }
 
 user = state.user()

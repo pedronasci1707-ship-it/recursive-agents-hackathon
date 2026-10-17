@@ -11,6 +11,19 @@ from campusloop import rules
 ROOT = Path(__file__).resolve().parents[1]
 SAMPLE_RUN = ROOT / "demo" / "sample_run.json"
 
+
+def _impossible(reqs):
+    """Priya's budget cannot cover what she needs: the agents must stop and escalate, not loop."""
+    return [{**r, "budget": 40, "profile": r["profile"] + " (budget cut to $40)"} if r["id"] == "REQ-3" else r
+            for r in reqs]
+
+
+# Demo scenarios for the admin views: label, recorded sample, how the buyer requests change.
+SCENARIOS = {
+    "standard": ("Conflict + recall: agents recover", SAMPLE_RUN, None),
+    "escalation": ("Impossible request: agents know when to stop", ROOT / "demo" / "sample_escalation.json", _impossible),
+}
+
 # Demo accounts: no passwords, nothing stored. The deployed site is a public demo.
 USERS = {
     "ana@ncsu.edu": {"name": "Ana", "role": "student", "request_id": "REQ-1"},
@@ -70,23 +83,25 @@ def claim_live_run():
     return None
 
 
-def run_agents(on_event, live, chaos=True, max_attempts=3, speed=2.0, custom_request=None):
+def run_agents(on_event, live, chaos=True, max_attempts=3, speed=2.0, custom_request=None, scenario=None):
     """Run the real agents (live) or replay the recorded sample run with its original pacing.
 
     `custom_request` replaces the demo request with the same id (a student's own kit request).
+    `scenario` picks one of SCENARIOS (admin views); defaults to the one chosen in the sidebar.
     """
+    _, sample_path, transform = SCENARIOS[scenario or st.session_state.get("scenario", "standard")]
     if live and (blocked := claim_live_run()):
         st.toast(blocked)
         live = False
     if live:
         from campusloop.engine import run
-        reqs = requests()
+        reqs = transform(requests()) if transform else requests()
         if custom_request:
             reqs = [custom_request if r["id"] == custom_request["id"] else r for r in reqs]
         res = run(on_event=on_event, simulate_outside_buyer=chaos, max_attempts=max_attempts, requests=reqs)
         st.session_state.source = "live run on Crusoe"
     else:
-        res = json.loads(SAMPLE_RUN.read_text(encoding="utf-8"))
+        res = json.loads(sample_path.read_text(encoding="utf-8"))
         last = 0.0
         for event in res["events"]:
             time.sleep(min(max(event["ts"] - last, 0.15), 3.0) / speed)
@@ -99,6 +114,9 @@ def run_agents(on_event, live, chaos=True, max_attempts=3, speed=2.0, custom_req
 
 def run_mode_controls(key):
     """Sidebar controls shared by pages that run the agents. Returns (live, chaos, max_attempts, speed)."""
+    st.session_state.scenario = st.sidebar.selectbox(
+        "Scenario", list(SCENARIOS), key=f"{key}_scenario", format_func=lambda k: SCENARIOS[k][0],
+        index=list(SCENARIOS).index(st.session_state.get("scenario", "standard")))
     can_live = has_api_key()
     live = st.sidebar.toggle("Run real agents on Crusoe", value=can_live, key=f"{key}_live", disabled=not can_live,
                              help="Off: replay a recorded run (no API calls)." if can_live

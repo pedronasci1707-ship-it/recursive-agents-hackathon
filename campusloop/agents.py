@@ -33,14 +33,14 @@ def parse_json(raw):
         raise AgentError(f"invalid JSON: {e}") from e
 
 
-def _ask(role, system, user, max_tokens, thinking=None, allow_reasoning=True):
+def _ask(role, system, user, max_tokens, thinking=None, allow_reasoning=True, timeout=60.0, max_tries=6):
     """One model call. thinking=False turns off the reasoning phase (Nemotron) for speed."""
     kwargs = {}
     if thinking is not None:
         kwargs["extra_body"] = {"chat_template_kwargs": {"enable_thinking": thinking}}
     try:
         resp = chat(role, [{"role": "system", "content": system}, {"role": "user", "content": user}],
-                    max_tokens=max_tokens, temperature=0.3, **kwargs)
+                    max_tokens=max_tokens, temperature=0.3, timeout=timeout, max_tries=max_tries, **kwargs)
     except Exception as e:
         raise AgentError(f"{type(e).__name__}: {e}") from e
     return text(resp) if allow_reasoning else (resp.choices[0].message.content or "")
@@ -82,6 +82,7 @@ Rules:
 - CampusLoop spends ${rules.DELIVERY_COST:.0f} delivering each kit; the kit margin must stay at or above {rules.MIN_MARGIN_PCT:.0f}% of the price.
 - Prefer better condition (A > B > C) when the budget allows, and respect the student's profile.
 - If a Verifier rejected your previous proposal, fix EVERY issue it reported.
+- If no combination can satisfy every rule, return the closest valid combination and say so in the rationale.
 Reply with ONLY a JSON object: {{"item_ids": ["ID", ...], "rationale": "one or two sentences"}}"""
 
 
@@ -102,7 +103,8 @@ def plan_kit(request, available_items, feedback=None, shared_notes=None):
         user += "\n\nTeam notes from the Verifier (apply them):\n- " + "\n- ".join(shared_notes)
     if feedback:
         user += "\n\nThe Verifier REJECTED your previous proposal:\n- " + "\n- ".join(feedback)
-    data = parse_json(_ask("planner", KIT_SYSTEM, user, 4096, thinking=PLANNER_THINKING))
+    data = parse_json(_ask("planner", KIT_SYSTEM, user, 4096 if PLANNER_THINKING else 700,
+                           thinking=PLANNER_THINKING, timeout=30.0, max_tries=2))
     ids = data.get("item_ids")
     if not isinstance(ids, list) or not ids:
         raise AgentError("reply has no item_ids")
