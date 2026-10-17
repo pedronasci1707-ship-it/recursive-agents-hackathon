@@ -43,8 +43,10 @@ Decidido em 17/out ~13:00 PDT. Origem: conversa no ChatGPT + `Ideia Revenda Esta
 - [x] Tarefas do amigo enviadas (Word local `CampusLoop - Tarefas do amigo.docx`): ele faz `app.py` (Streamlit), README em inglês e vídeo
 - [x] Motor pronto e testado ao vivo (~12 s, 3/3 kits): `campusloop/engine.py` (controller), `agents.py` (Intake=DeepSeek Flash, Kit=Nemotron Super sem thinking, Reporter=Nemotron Lightning), `rules.py` (verificação determinística). Contrato motor↔UI em `docs/CONTRACT.md`; exemplo em `demo/sample_run.json` (`python -m campusloop.engine --save` regenera)
 - [x] 11 testes offline (`python -m pytest`)
-- **Divisão de arquivos:** amigo mexe só em `app.py`, `README.md`, `demo/` (menos `sample_run.json`); nós em `campusloop/`, `core/`, `tests/`, `docs/`
-- [ ] Testes (cenário normal + falha induzida + recuperação)
+- [x] Site (Streamlit multipage, `app.py` + `ui/`): clientes (Ana/Marcus/Priya = estudantes, Jake = vendedor) veem só a loja com nav no topo: `ui/pages/student.py` (montar kit, trocar/remover item, resumo, agendar entrega), `shop.py` (catálogo + adicionar ao kit, re-verificado por `ui/store.py`), `seller.py` (foto via Gemma 4 vision ou texto → oferta → retirada). **Raciocínio dos agentes só para admin** (`admin@campusloop.ai`): `live.py` (tela dividida p/ vídeo) e `operations.py` (painel do Augusto). Design: `ui/components.py` (Inter, Material Symbols), `.streamlit/config.toml`, `assets/logo.svg`
+- [ ] Deploy no Streamlit Community Cloud (usuário loga e cola a chave em Secrets: `CRUSOE_API_KEY = '...'`)
+- **Divisão de arquivos:** Augusto mexe em `README.md` e no vídeo; nós em todo o resto (inclusive `app.py` e `ui/`)
+- [x] Testes (cenário normal + falha induzida + recuperação)
 - [ ] Vídeo de 1 min (EN) + README final (EN)
 - [ ] Submeter até 16:45 PDT (prazo 17:00)
 
