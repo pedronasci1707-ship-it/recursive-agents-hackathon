@@ -40,8 +40,10 @@ Decidido em 17/out ~13:00 PDT. Origem: conversa no ChatGPT + `Ideia Revenda Esta
 - [x] Ambiente local: `.venv`, dependências, `core/crusoe_client.py`, `check_crusoe.py` — conexão testada, 4 modelos OK
 - [x] Repo GitHub **público**: https://github.com/pedronasci1707-ship-it/recursive-agents-hackathon (amigo adicionado como colaborador)
 - [x] Desafio e ideia escolhidos (CampusLoop AI)
-- [ ] Dividir tarefas com o amigo
-- [ ] MVP: catálogo → agentes → controller recursivo → Streamlit
+- [x] Tarefas do amigo enviadas (Word local `CampusLoop - Tarefas do amigo.docx`): ele faz `app.py` (Streamlit), README em inglês e vídeo
+- [x] Motor pronto e testado ao vivo (~12 s, 3/3 kits): `campusloop/engine.py` (controller), `agents.py` (Intake=DeepSeek Flash, Kit=Nemotron Super sem thinking, Reporter=Nemotron Lightning), `rules.py` (verificação determinística). Contrato motor↔UI em `docs/CONTRACT.md`; exemplo em `demo/sample_run.json` (`python -m campusloop.engine --save` regenera)
+- [x] 11 testes offline (`python -m pytest`)
+- **Divisão de arquivos:** amigo mexe só em `app.py`, `README.md`, `demo/` (menos `sample_run.json`); nós em `campusloop/`, `core/`, `tests/`, `docs/`
 - [ ] Testes (cenário normal + falha induzida + recuperação)
 - [ ] Vídeo de 1 min (EN) + README final (EN)
 - [ ] Submeter até 16:45 PDT (prazo 17:00)
