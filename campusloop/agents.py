@@ -57,6 +57,8 @@ Reply with ONLY a JSON object with these keys:
   "model": the model number exactly as written by the seller, or "" if none,
   "color": main color, one of {rules.COLORS},
   "style": the look it fits best, one of {rules.STYLES},
+  "quality_score": integer 1-10 consistent with the grade (A = 9-10, B = 6-8, C = 3-5; 1-2 = broken, do not buy),
+  "defects": list of short visible defects (e.g. "dented door", "scratched top"), [] if none,
   "notes": one short sentence on anything a buyer should know."""
 
 
@@ -76,6 +78,12 @@ def intake_listing(listing, image=None, mime="image/jpeg"):
         data["category"] = "other"
     if data.get("condition") not in rules.CONDITION_FACTOR:
         data["condition"] = "C"
+    try:
+        data["quality_score"] = max(1, min(10, int(data.get("quality_score"))))
+    except (TypeError, ValueError):
+        data["quality_score"] = {"A": 9, "B": 7, "C": 4}[data["condition"]]
+    if not isinstance(data.get("defects"), list):
+        data["defects"] = []
     if data.get("color") not in rules.COLORS:
         data["color"] = "other"
     if data.get("style") not in rules.STYLES:

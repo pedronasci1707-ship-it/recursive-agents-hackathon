@@ -1,5 +1,20 @@
 [
-  {"id": "LIST-1", "seller": "Jake (moving out Friday)", "text": "Selling my ChillCube mini fridge before move-out!! model CC-17, works great, $40 obo, pickup at Wolf Village"},
-  {"id": "LIST-2", "seller": "Mei", "text": "black desk lamp w/ USB charging port, like new, used one semester. Model TT-DL13. free if you pick up today"},
-  {"id": "LIST-3", "seller": "Tom", "text": "20 inch box fan, a bit dusty but runs fine on all 3 speeds, Lasko 3733"}
+  {
+    "id": "LIST-1",
+    "seller": "Jake (moving out Friday)",
+    "text": "Selling my ChillCube mini fridge before move-out!! model CC-17, works great, $40 obo, pickup at Wolf Village",
+    "photo": "listings/LIST-1.jpg"
+  },
+  {
+    "id": "LIST-2",
+    "seller": "Mei",
+    "text": "black desk lamp w/ USB charging port, like new, used one semester. Model TT-DL13. free if you pick up today",
+    "photo": "listings/LIST-2.jpg"
+  },
+  {
+    "id": "LIST-3",
+    "seller": "Tom",
+    "text": "20 inch box fan, a bit dusty but runs fine on all 3 speeds, Lasko 3733",
+    "photo": "listings/LIST-3.jpg"
+  }
 ]

@@ -15,7 +15,7 @@ from datetime import datetime, timezone
 
 from core.crusoe_client import MODELS, USAGE, usage_summary
 
-from . import agents, rules
+from . import agents, db, rules
 
 ID_PREFIX = {
     "mini_fridge": "FRIDGE", "microwave": "MICRO", "desk_lamp": "LAMP", "fan": "FAN",
@@ -42,7 +42,7 @@ def run(on_event=None, simulate_outside_buyer=True, max_attempts=3, requests=Non
         if on_event:
             on_event(event)
 
-    inventory = {i["id"]: i for i in rules.load("catalog.json")}
+    inventory = {i["id"]: i for i in db.products()}
     requests = requests if requests is not None else rules.load("requests.json")
     listings = listings if listings is not None else rules.load("intake.json")
     recalls = rules.recall_list()
@@ -112,6 +112,8 @@ def _run_intake(listings, inventory, recalls, emit):
         else:
             item = {"id": _new_id(res["category"], inventory), "name": res.get("name") or "Unnamed item",
                     "category": res["category"], "condition": res["condition"], "model": res.get("model") or "",
+                    "quality_score": res.get("quality_score"), "defects": res.get("defects") or [],
+                    "photo": listing.get("photo", ""),
                     "color": res.get("color", "other"), "style": res.get("style", "minimal"),
                     **rules.price_listing(res["category"], res["condition"]),
                     "status": "available", "reserved_for": None}

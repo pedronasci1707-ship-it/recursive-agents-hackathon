@@ -18,9 +18,11 @@ CATEGORIES = [
     "desk", "storage_bins", "shelf", "kitchen_basics", "other",
 ]
 # Resale price for a condition-A item, by category (USD)
+# Resale price for an Excellent (A) item, by category (USD): ~55-60% of a comparable new item for appliances,
+# lower for generic furniture. Market research and sources: docs/MARKET.md
 BASE_RESALE = {
-    "mini_fridge": 95, "microwave": 55, "desk_lamp": 22, "fan": 28, "desk_chair": 70,
-    "desk": 75, "storage_bins": 18, "shelf": 40, "kitchen_basics": 45, "other": 20,
+    "mini_fridge": 100, "microwave": 50, "desk_lamp": 18, "fan": 22, "desk_chair": 65,
+    "desk": 60, "storage_bins": 15, "shelf": 30, "kitchen_basics": 35, "other": 15,
 }
 CONDITION_FACTOR = {"A": 1.0, "B": 0.75, "C": 0.5}
 # Quality grades, best first: A = Excellent (like new, perfect), B = Good, C = Fair.
