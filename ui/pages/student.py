@@ -27,7 +27,6 @@ rid = req["id"]
 res = state.result()
 kit = store.kit_for(res, rid)
 prefs = st.session_state.setdefault(f"prefs_{rid}", {
-    "housing": "Apartment" if "apartment" in req["profile"].lower() else "Dorm room",
     "move_in": date(2027, 8, 12), "budget": int(req["budget"]), "needs": list(req["needs"]),
 })
 
@@ -40,7 +39,6 @@ def build_page():
         st.info("Our agents are busy with other students right now. Try **Build my kit** again in a few seconds.")
     form_col, info_col = st.columns([1.5, 1], gap="large")
     with form_col, st.container(border=True):
-        housing = st.segmented_control("Where are you living?", ["Dorm room", "Apartment"], default=prefs["housing"])
         move_in = st.date_input("Move-in date", value=prefs["move_in"], format="MM/DD/YYYY")
         budget = st.slider("Budget", 80, 400, prefs["budget"], step=10, format="$%d")
         needs = st.pills("What do you need?", list(c.LABEL)[:-1], selection_mode="multi",
@@ -50,7 +48,7 @@ def build_page():
         info = st.empty()
         info.html(f"""
         <div class="feature">{c.icon("tune")}<h4>1 · Tell us what you need</h4>
-          <p>Your room, your budget, your move-in date.</p></div>
+          <p>What you need, your budget, your move-in date.</p></div>
         <div class="feature">{c.icon("fact_check")}<h4>2 · We build &amp; verify</h4>
           <p>Every item is checked for availability, safety recalls and price before we show it to you.</p></div>
         <div class="feature">{c.icon("local_shipping")}<h4>3 · Delivered on move-in day</h4>
@@ -60,9 +58,9 @@ def build_page():
     if not needs:
         st.warning("Pick at least one item you need.")
         return
-    prefs.update(housing=housing or prefs["housing"], move_in=move_in, budget=budget, needs=list(needs))
+    prefs.update(move_in=move_in, budget=budget, needs=list(needs))
     custom = {**req, "budget": budget, "needs": list(needs),
-              "profile": f"{req['profile']}. Living in: {prefs['housing']}. Moving in {move_in:%b %d}"}
+              "profile": f"{req['profile']}. Moving in {move_in:%b %d}"}
     with info.container(), st.status("Building your kit…", expanded=True) as box:
         shown = set()
 
@@ -98,7 +96,7 @@ order_no = f"CL-{res['run_id'][:4].upper()}{rid[-1]}"
 head, status_col = st.columns([4, 1], vertical_alignment="bottom")
 with head:
     c.page_header("Your move-in kit", f"{req['buyer']}'s room kit",
-                  f"{prefs['housing']} · moving in {prefs['move_in']:%B %d} · order {order_no}")
+                  f"Moving in {prefs['move_in']:%B %d} · order {order_no}")
 with status_col:
     st.html(c.pill("Verified", ico="verified") if verified else c.pill("Under review", "warn", "schedule"))
 
