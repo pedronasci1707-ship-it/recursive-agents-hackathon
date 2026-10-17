@@ -55,6 +55,8 @@ with right:
                         state.sign_in(new_email)
                         st.rerun()
     st.caption("No password needed in this demo. Accounts last for this browser session.")
+    if st.button("Just looking? Try a demo account", icon=":material/play_circle:", width="stretch"):
+        st.switch_page("ui/pages/demo.py")
 
 st.write("")
 cols = st.columns(4)

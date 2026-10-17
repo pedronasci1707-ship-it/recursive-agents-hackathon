@@ -195,14 +195,17 @@ a { color: var(--cobalt); }
 .offer { border-radius: 22px; border: 2px solid var(--ink); padding: 24px 26px; background: #fff; box-shadow: var(--shadow); }
 .offer .big { font-size: 3.4rem; font-weight: 900; letter-spacing: -0.05em; color: var(--cobalt); line-height: 1; }
 .offer.reject { background: #FFE9DF; }
-.feature { padding: 22px 20px; background: #fff; border: 2px solid var(--ink); border-radius: 22px; box-shadow: var(--shadow);
-           height: 100%; margin-bottom: 14px; }
-.feature .ms { font-size: 28px; color: var(--ink); background: var(--sun); border: 2px solid var(--ink); border-radius: 50%;
-               padding: 8px; display: inline-block; }
+.feature { padding: 30px 20px 22px; background: #fff; border: 2px solid var(--ink); border-radius: 22px; box-shadow: var(--shadow);
+           height: 100%; margin: 22px 0 14px; position: relative; }
+/* icon stuck on the card's top edge, tilted like a sticker */
+.feature .ms { font-size: 28px; color: var(--ink); background: var(--sun); border: 2px solid var(--ink); border-radius: 14px;
+               padding: 8px; display: inline-block; position: absolute; top: -24px; right: 18px; transform: rotate(12deg);
+               box-shadow: 2px 2px 0 var(--ink); }
+[data-testid="stColumn"]:nth-child(even) .feature .ms { transform: rotate(-10deg); }
 [data-testid="stColumn"]:nth-child(2) .feature .ms { background: var(--sky); }
 [data-testid="stColumn"]:nth-child(3) .feature .ms { background: var(--peach); }
 [data-testid="stColumn"]:nth-child(4) .feature .ms { background: #BFE6CC; }
-.feature h4 { margin: 12px 0 4px; font-size: 1.06rem; font-weight: 800; }
+.feature h4 { margin: 0 0 4px; font-size: 1.06rem; font-weight: 800; padding-right: 54px; }
 .feature p { color: var(--muted); font-size: .92rem; margin: 0; }
 
 /* ---------- admin ---------- */

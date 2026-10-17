@@ -21,3 +21,6 @@ with mid, st.container(border=True):
                      disabled=bool(current and current["email"] == email)):
             state.sign_in(email)
             st.rerun()
+if not current:
+    with mid:
+        st.page_link("ui/pages/login.py", label="Back to sign in", icon=":material/arrow_back:")
