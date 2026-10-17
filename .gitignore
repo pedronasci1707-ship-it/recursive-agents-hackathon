@@ -1,0 +1,29 @@
+# Secrets — never commit
+.env
+.env.*
+!.env.example
+
+# Python
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# Local data / runs
+*.db
+*.sqlite
+*.sqlite3
+runs/
+logs/
+
+# Editors / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Claude Code local settings
+.claude/settings.local.json
+
+# Screenshots
+Captura de tela*.png
