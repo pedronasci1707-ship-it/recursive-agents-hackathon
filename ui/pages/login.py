@@ -15,11 +15,12 @@ left, right = st.columns([1.35, 1], gap="large")
 with left:
     st.html(f"""
     <div class="hero" style="min-height: 430px; display:flex; flex-direction:column; justify-content:flex-end">
-      <div class="pill" style="background:rgba(255,255,255,.18);color:#fff;width:fit-content;margin-bottom:16px">
+      <div class="pill" style="width:fit-content;margin-bottom:18px">
         {c.icon("verified_user")}Every kit verified before it ships</div>
-      <h1>Move-in ready.<br>Move-out easy.</h1>
+      <h1>Move-in <em>ready.</em><br>Move-out <em>easy.</em></h1>
       <p>Pre-loved mini-fridges, desks, lamps and kitchen basics from students who just moved out,
          inspected, recall-checked and delivered to your room on move-in day.</p>
+      {c.scribble("made by students, for students ♥")}
       {c.icon("autorenew")}
     </div>""")
 

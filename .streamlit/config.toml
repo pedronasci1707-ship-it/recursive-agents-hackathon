@@ -1,10 +1,12 @@
 [theme]
 base = "light"
-primaryColor = "#0B6E4F"
-backgroundColor = "#FFFFFF"
-secondaryBackgroundColor = "#F5F6F4"
-textColor = "#14201B"
-baseRadius = "12px"
+primaryColor = "#2D4BB8"
+backgroundColor = "#F7F4ED"
+secondaryBackgroundColor = "#EFE9DD"
+textColor = "#111111"
+borderColor = "#111111"
+showWidgetBorder = true
+baseRadius = "14px"
 
 [client]
 toolbarMode = "minimal"

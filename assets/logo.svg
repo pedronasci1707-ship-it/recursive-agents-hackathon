@@ -1,6 +1,9 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="220" height="48" viewBox="0 0 220 48">
-  <rect x="2" y="4" width="40" height="40" rx="12" fill="#0B6E4F"/>
-  <path d="M14 21a9 9 0 0 1 15.4-4.6M30 27a9 9 0 0 1-15.4 4.6" fill="none" stroke="#fff" stroke-width="3.2" stroke-linecap="round"/>
-  <path d="M29.8 11.6v5.6h-5.6M14.2 36.4v-5.6h5.6" fill="none" stroke="#fff" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/>
-  <text x="52" y="32" font-family="Inter, Segoe UI, Helvetica, Arial, sans-serif" font-size="22" font-weight="800" letter-spacing="-0.6" fill="#14201B">campus<tspan fill="#0B6E4F">loop</tspan></text>
+<svg xmlns="http://www.w3.org/2000/svg" width="236" height="52" viewBox="0 0 236 52">
+  <circle cx="34" cy="14" r="11" fill="#F5C431" stroke="#111" stroke-width="2"/>
+  <rect x="5" y="9" width="38" height="38" rx="12" fill="#2D4BB8" stroke="#111" stroke-width="2" transform="rotate(-8 24 28)"/>
+  <path d="M15 26a9 9 0 0 1 15.4-4.6M31 32a9 9 0 0 1-15.4 4.6" fill="none" stroke="#fff" stroke-width="3.2" stroke-linecap="round"/>
+  <path d="M30.8 16.6v5.6h-5.6M15.2 41.4v-5.6h5.6" fill="none" stroke="#fff" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/>
+  <text x="54" y="35" font-family="Inter, Segoe UI, Helvetica, Arial, sans-serif" font-size="24" font-weight="900" letter-spacing="-1" fill="#111">campus</text>
+  <text x="146" y="35" font-family="Georgia, 'Times New Roman', serif" font-size="25" font-style="italic" font-weight="700" fill="#2D4BB8">loop</text>
+  <path d="M147 43 q 6 -4 12 0 t 12 0 t 12 0 t 12 0" fill="none" stroke="#EF5A2B" stroke-width="2.6" stroke-linecap="round"/>
 </svg>
