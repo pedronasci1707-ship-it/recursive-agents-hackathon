@@ -19,6 +19,7 @@ FRIENDLY_MODEL = {
     "nvidia/NVIDIA-Nemotron-3-Super-120B-A12B": "NVIDIA Nemotron 3 Super",
     "nvidia/Nemotron-3.5-Lightning-30B-A3B": "NVIDIA Nemotron 3.5 Lightning",
     "deepseek-ai/Deepseek-V4-Flash": "DeepSeek V4 Flash", "google/gemma-4-31b-it": "Google Gemma 4",
+    "nvidia/NVIDIA-Nemotron-3.5-Super-VL": "NVIDIA Nemotron 3.5 Super VL",
 }
 
 
@@ -83,10 +84,11 @@ def agents(max_attempts=3):
             commands=["Use only facts from this run", "Explain what was caught and how it was fixed",
                       "Say plainly when a kit was handed to a human", "Never invent numbers"]),
         "inventory": dict(
-            name="Live inventory", icon="inventory_2", engine="Shared state",
-            about="The single source of truth. Items from accepted listings land here; reservations are made here "
-                  "only after the Quality Checker passes a kit. Outside buyers can take items at any moment.",
-            commands=["Reserve items only for verified kits", "Reject anything already reserved"]),
+            name="Photo inventory", icon="inventory_2", engine="SQLite catalog + run inventory",
+            about="The product database stores available catalog and seller items with a path to each photo. "
+                  "The run inventory adds inspected example listings; Kit Builders read those item records and photos.",
+            commands=["Link each accepted listing to its photo path", "Give Kit Builders available item records",
+                      "Reserve items only after the Quality Checker passes the kit"]),
         "blocked": dict(
             name="Blocked listings", icon="block", engine="Safety",
             about="Listings rejected at intake, for example a model under a safety recall. They never reach inventory.",
@@ -134,7 +136,19 @@ def storyboard(res):
     for i, e in enumerate(events):
         a, k, m, t = e["agent"], e["kind"], e["message"], e["ts"]
         tok = by_buyer.get(e["data"].get("buyer"))
-        if a == "Controller" and m.startswith("Spinning up"):
+        if k == "photo_received":
+            lid = e["data"].get("listing_id")
+            if lid in pos:
+                pos[lid], status[lid] = "listing_reader", "work"
+            snap(t, "listing_reader", m, k, a, "listing_reader")
+        elif k == "inventory_add":
+            lid = e["data"].get("listing_id")
+            if lid in pos:
+                pos[lid], status[lid] = "inventory", "ok"
+            snap(t, "inventory", m, k, a, "inventory")
+        elif k == "inventory_take":
+            snap(t, "inventory", m, k, a, "inventory")
+        elif a == "Controller" and m.startswith("Spinning up"):
             for tk in tokens:
                 if tk["kind"] == "listing":
                     pos[tk["id"]], status[tk["id"]] = "listing_reader", "work"
@@ -218,9 +232,13 @@ def storyboard(res):
                                       "price": kit["price"], "items": [i["name"] for i in kit["items"]], "lines": lines}
     for entry in res["intake"]:
         history[entry["listing_id"]] = {"name": f"Listing from {entry['seller']}", "status":
-                                        "accepted" if entry["accepted"] else "blocked", "lines": [
-                                            {"t": 0, "agent": "Listing Reader", "msg": disp(entry["reason"]),
-                                             "kind": "intake" if entry["accepted"] else "verify_fail"}]}
+                                        "accepted" if entry["accepted"] else "blocked",
+                                        "photo": entry.get("photo") or (entry.get("item") or {}).get("photo"),
+                                        "lines": [{"t": e["ts"], "agent": disp(e["agent"]),
+                                                   "msg": disp(e["message"]), "kind": e["kind"]}
+                                                  for e in events if e["data"].get("listing_id") == entry["listing_id"]]
+                                        + [{"t": 0, "agent": "Listing Reader", "msg": disp(entry["reason"]),
+                                            "kind": "intake" if entry["accepted"] else "verify_fail"}]}
     return {"tokens": tokens, "frames": frames, "history": history, "status": res["status"],
             "duration": res["duration_s"]}
 

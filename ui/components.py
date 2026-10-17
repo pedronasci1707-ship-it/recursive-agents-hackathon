@@ -1,6 +1,7 @@
 """Design system: CSS tokens, product components and the admin agent timeline."""
 
 import html
+from pathlib import Path
 from urllib.parse import quote
 
 import streamlit as st
@@ -254,8 +255,30 @@ CUSTOMER_CSS = """
 """
 
 
+PHOTO_CSS = """
+<style>
+.tile.photo { padding: 0; overflow: hidden; background: #fff; border: 2px solid var(--ink, #111); }
+.tile.photo img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.pc-media.photo { background: #fff; padding: 0; }
+.pc-media.photo img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.q-chip { display: inline-block; font-size: .78rem; font-weight: 700; padding: 1px 8px; border-radius: 999px;
+          background: var(--soft, #EFE9DD); margin-left: 6px; }
+</style>
+"""
+STATIC = Path(__file__).resolve().parents[1] / "static"
+ID_PREFIX = {"mini_fridge": "FRIDGE", "microwave": "MICRO", "desk_lamp": "LAMP", "fan": "FAN",
+             "desk_chair": "CHAIR", "desk": "DESK", "storage_bins": "BINS", "shelf": "SHELF",
+             "kitchen_basics": "KITCH", "other": "ITEM"}
+
+
 def inject_css(customer=False):
-    st.html(CSS + (CUSTOMER_CSS if customer else ""))
+    st.html(CSS + PHOTO_CSS + (CUSTOMER_CSS if customer else ""))
+
+
+def photo_src(item):
+    """URL of the item's photo (served from static/), or None. Older recorded runs carry no photo field."""
+    rel = item.get("photo") or (f"products/{item['id']}.jpg" if (STATIC / "products" / f"{item['id']}.jpg").exists() else "")
+    return f"app/static/{rel}" if rel else None
 
 
 def esc(text):
@@ -306,7 +329,11 @@ def new_price(item):
     return NEW_RETAIL.get(item["category"], NEW_RETAIL["other"])
 
 
-def tile(category, size=64):
+def tile(category, size=64, item=None):
+    src = photo_src(item) if item else None
+    if src:
+        return (f'<div class="tile photo" style="width:{size}px;height:{size}px">'
+                f'<img src="{esc(src)}" alt="{esc(item["name"])}" loading="lazy"></div>')
     ico, tint = ART.get(category, ART["other"])
     return (f'<div class="tile" style="--tint:{tint};width:{size}px;height:{size}px">'
             f'<span class="ms" style="font-size:{int(size * .5)}px">{ico}</span></div>')
@@ -318,10 +345,15 @@ def _look(item):
     return "".join(f" · {esc(p)}" for p in parts)
 
 
+def quality_chip(item):
+    score = item.get("quality_score") or {"A": 9, "B": 7, "C": 4}.get(item.get("condition"))
+    return f'<span class="q-chip">{score}/10</span>' if score else ""
+
+
 def line_item(item):
-    return (f'<div class="line">{tile(item["category"])}'
+    return (f'<div class="line">{tile(item["category"], 72, item)}'
             f'<div><div class="name">{esc(item["name"])}</div>'
-            f'<div class="meta">{CONDITION.get(item["condition"], item["condition"])} condition · '
+            f'<div class="meta">{CONDITION.get(item["condition"], item["condition"])} condition{quality_chip(item)} · '
             f'{LABEL.get(item["category"], "Item")}{_look(item)}</div></div>'
             f'<div class="price">${item["resale_price"]:.0f}<s>${new_price(item)} new</s></div></div>')
 
@@ -329,7 +361,10 @@ def line_item(item):
 def product_card(item):
     ico, tint = ART.get(item["category"], ART["other"])
     save = round(100 * (1 - item["resale_price"] / new_price(item)))
-    return (f'<div class="pc"><div class="pc-media" style="--tint:{tint}"><span class="ms">{ico}</span>'
+    src = photo_src(item)
+    media = (f'<div class="pc-media photo"><img src="{esc(src)}" alt="{esc(item["name"])}" loading="lazy">' if src
+             else f'<div class="pc-media" style="--tint:{tint}"><span class="ms">{ico}</span>')
+    return (f'<div class="pc">{media}'
             f'<span class="pc-cond">{CONDITION.get(item["condition"], item["condition"])}</span>'
             f'<span class="pc-save">-{save}%</span></div>'
             f'<div class="pc-body"><div class="pc-name">{esc(item["name"])}</div>'

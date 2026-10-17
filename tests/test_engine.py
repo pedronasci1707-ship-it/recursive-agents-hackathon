@@ -6,11 +6,12 @@ from pathlib import Path
 import pytest
 
 from campusloop import agents, engine
+from ui import flowboard
 
 ROOT = Path(__file__).resolve().parents[1]
 
 
-def fake_intake(listing):
+def fake_intake(listing, image=None, mime="image/jpeg"):
     if "ChillCube" in listing["text"]:
         return {"name": "ChillCube fridge", "category": "mini_fridge", "condition": "A", "model": "CC-17"}
     return {"name": "Desk lamp", "category": "desk_lamp", "condition": "A", "model": "X-1"}
@@ -77,3 +78,33 @@ def test_sample_run_matches_contract():
         assert key in sample["kits"][0]
     for key in ("ts", "agent", "kind", "message", "data"):
         assert key in sample["events"][0]
+
+
+def test_run_feeds_listing_photos_to_vision_agent(offline, monkeypatch):
+    seen = []
+
+    def capture(listing, image=None, mime="image/jpeg"):
+        seen.append((listing["id"], image, mime))
+        return fake_intake(listing, image, mime)
+
+    monkeypatch.setattr(agents, "intake_listing", capture)
+    result = engine.run(requests=[], simulate_outside_buyer=False)
+    assert len(seen) == 3
+    assert all(image and image.startswith(b"\xff\xd8") and mime == "image/jpeg" for _, image, mime in seen)
+    assert {"photo_received", "inventory_add"} <= {e["kind"] for e in result["events"]}
+    assert all(entry["photo"].startswith("listings/") for entry in result["intake"])
+    assert all(entry["item"]["photo"].startswith("listings/") for entry in result["intake"] if entry["accepted"])
+    board = flowboard.storyboard(result)
+    assert any(frame["kind"] == "photo_received" and frame["node"] == "listing_reader"
+               for frame in board["frames"])
+    assert any(frame["kind"] == "inventory_add" and frame["node"] == "inventory"
+               for frame in board["frames"])
+    assert board["history"]["LIST-1"]["photo"] == "listings/LIST-1.jpg"  # recalled, but still auditable
+
+
+def test_broken_photo_result_never_enters_inventory(offline, monkeypatch):
+    monkeypatch.setattr(agents, "intake_listing", lambda *a, **k: {
+        "name": "Broken lamp", "category": "desk_lamp", "condition": "C", "quality_score": 1, "model": "X"})
+    result = engine.run(requests=[], simulate_outside_buyer=False)
+    assert all(not entry["accepted"] for entry in result["intake"])
+    assert all(entry["item"] is None for entry in result["intake"])

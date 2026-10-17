@@ -266,13 +266,29 @@ with left:
                 alts = store.alternatives(res, item)
                 with st.popover("Swap", icon=":material/swap_horiz:", disabled=not alts or bool(order),
                                 width="stretch"):
+                    rank = {"A": 3, "B": 2, "C": 1}
+                    better = sorted((a for a in alts if rank[a["condition"]] > rank[item["condition"]]),
+                                    key=lambda a: a["resale_price"])
+                    cheaper = sorted((a for a in alts if a["resale_price"] < item["resale_price"]),
+                                     key=lambda a: (-rank[a["condition"]], a["resale_price"]))
+                    choice = None
+                    q1, q2 = st.columns(2)
+                    if q1.button("Better quality", key=f"up_{item['id']}", icon=":material/arrow_upward:",
+                                 disabled=not better, width="stretch"):
+                        choice = better[0]
+                    if q2.button("Lower price", key=f"down_{item['id']}", icon=":material/arrow_downward:",
+                                 disabled=not cheaper, width="stretch"):
+                        choice = cheaper[0]
                     st.markdown(f"**Other {c.LABEL[item['category']].lower()}s in stock**")
-                    pick = st.radio("Choose", alts, key=f"swap_{item['id']}", label_visibility="collapsed",
-                                    format_func=lambda i: f"{i['name']} · {c.CONDITION[i['condition']]} · ${i['resale_price']:.0f}")
-                    if st.button("Swap item", key=f"do_swap_{item['id']}", type="primary", width="stretch"):
-                        ok, msgs = store.swap(res, kit, item["id"], pick["id"])
+                    for alt in alts:
+                        a_row, a_btn = st.columns([4, 1.2], vertical_alignment="center")
+                        a_row.html(c.line_item(alt))
+                        if a_btn.button("Choose", key=f"pick_{item['id']}_{alt['id']}", width="stretch"):
+                            choice = alt
+                    if choice:
+                        ok, msgs = store.swap(res, kit, item["id"], choice["id"])
                         if ok:
-                            st.toast("Kit updated and re-verified", icon=":material/verified:")
+                            st.toast(f"Swapped for {choice['name']} · kit re-verified", icon=":material/verified:")
                             st.rerun()
                         for m in msgs:
                             st.error(m)

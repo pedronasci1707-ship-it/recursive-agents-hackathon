@@ -106,21 +106,22 @@
 <script>
 const DATA = /*__DATA__*/null;
 const NODES = {
-  inbox: { x: 10, y: 12, name: "Incoming requests", icon: "inbox", cls: "inbox" },
+  inbox: { x: 10, y: 12, name: "Requests + photos", icon: "inbox", cls: "inbox" },
   coordinator: { x: 50, y: 12, name: "Coordinator", icon: "account_tree" },
   listing_reader: { x: 11, y: 48, name: "Listing Reader", icon: "document_scanner" },
   kit_builders: { x: 37, y: 48, name: "Kit Builders", icon: "shopping_bag" },
   quality_checker: { x: 63, y: 48, name: "Quality Checker", icon: "fact_check" },
   report_writer: { x: 89, y: 48, name: "Report Writer", icon: "description" },
   blocked: { x: 11, y: 85, name: "Blocked listings", icon: "block", cls: "store" },
-  inventory: { x: 32, y: 85, name: "Live inventory", icon: "inventory_2", cls: "store" },
+  inventory: { x: 32, y: 85, name: "Photo inventory", icon: "inventory_2", cls: "store" },
 };
 const FIN = { x: 72, y: 85 };
 const EDGES = [["inbox","coordinator"],["coordinator","listing_reader"],["coordinator","kit_builders"],
   ["kit_builders","quality_checker"],["quality_checker","coordinator","back"],["coordinator","finished"],
   ["listing_reader","inventory"],["listing_reader","blocked"],["inventory","kit_builders","dash"],["quality_checker","report_writer"]];
 const KIND = { verify_fail: "red", conflict: "red", verify_pass: "green", reserve: "green", done: "green", intake: "green",
-  replan: "orange", escalate: "orange", plan: "blue", info: "blue" };
+  replan: "orange", escalate: "orange", plan: "blue", info: "blue", photo_received: "blue",
+  inventory_add: "green", inventory_take: "blue" };
 const COLOR = { red: "#E5484D", green: "#30A46C", orange: "#F76B15", blue: "#3E63DD", grey: "#9AA39E" };
 
 const board = document.getElementById("board");
@@ -300,6 +301,8 @@ function openHistory() {
       needs_approval: "Needs human approval", blocked: "Blocked (safety)" }[h.status] || h.status;
     html += `<h4>${esc(h.name)} <span class="pill" style="background:${color}">${label}</span></h4>`;
     if (h.items) html += `<p>${h.attempts} attempt(s) · ${h.items.length ? "kit: " + esc(h.items.join(", ")) + " · $" + Math.round(h.price) : "no kit shipped"}</p>`;
+    if (h.photo && /^(products|listings|uploads)\/[A-Za-z0-9_.-]+$/.test(h.photo))
+      html += `<p><img src="app/static/${esc(h.photo)}" alt="Listing photo" style="max-width:180px;border-radius:12px"> <code>static/${esc(h.photo)}</code></p>`;
     html += h.lines.map(l => `<div class="act" style="border-left-color:${COLOR[KIND[l.kind] || "grey"]}"><span class="ts">${(+l.t).toFixed(1)}s</span><b>${esc(l.agent)}</b>: ${esc(l.msg)}</div>`).join("");
   }
   modal(html);

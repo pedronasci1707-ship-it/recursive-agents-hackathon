@@ -5,7 +5,7 @@ Every change a customer makes to a kit goes through the same Verifier rules the 
 
 import copy
 
-from campusloop import rules
+from campusloop import db, rules
 
 RECALLS = rules.recall_list()
 
@@ -27,7 +27,10 @@ def is_safe(item):
 
 def shop_items(res):
     """What a customer can buy: available, never recalled."""
-    source = res["inventory"] if res else rules.load("catalog.json")
+    source = list(res["inventory"]) if res else db.products()
+    if res:  # items students listed after this run was made are in the database too
+        known = {i["id"] for i in source}
+        source += [i for i in db.products() if i.get("source") == "seller" and i["id"] not in known]
     return [i for i in source if i["status"] == "available" and is_safe(i)]
 
 
@@ -56,12 +59,16 @@ def friendly(issues, budget):
 
 def change_kit(res, kit, new_ids):
     """Re-verify the kit with new items; reserve them if every check passes. Returns (ok, messages)."""
+    known = {i["id"] for i in res["inventory"]}
+    res["inventory"] += [i for i in db.products() if i["id"] in new_ids and i["id"] not in known]
     inv = inventory(res)
     tag = f"{kit['buyer']} ({kit['request_id']})"
     current = [i["id"] for i in kit["items"]]
     for iid in current:
         inv[iid]["status"], inv[iid]["reserved_for"] = "available", None
-    request = {"id": kit["request_id"], "buyer": kit["buyer"], "budget": kit["budget"], "needs": kit["needs"]}
+    request = {"id": kit["request_id"], "buyer": kit["buyer"], "budget": kit["budget"],
+               "needs": kit["needs"], "min_condition": kit.get("min_condition"),
+               "item_prefs": kit.get("item_prefs") or {}}
     checks, issues, _ = rules.verify_kit(request, new_ids, inv, RECALLS)
     if issues:
         for iid in current:

@@ -54,12 +54,30 @@ Reply with ONLY a JSON object with these keys:
   "condition": quality grade, the most important field. "A" = Excellent (like new, perfect, no visible wear),
                "B" = Good (used, works fine, light cosmetic wear), "C" = Fair (worn, scratches or dents, but works).
                Grade from the evidence (photo, age, words like "scratched", "like new"); when unsure, pick the lower grade,
-  "model": the model number exactly as written by the seller, or "" if none,
+  "model": the model number exactly as written by the seller or clearly legible on the item, or "" if none,
   "color": main color, one of {rules.COLORS},
   "style": the look it fits best, one of {rules.STYLES},
   "quality_score": integer 1-10 consistent with the grade (A = 9-10, B = 6-8, C = 3-5; 1-2 = broken, do not buy),
   "defects": list of short visible defects (e.g. "dented door", "scratched top"), [] if none,
-  "notes": one short sentence on anything a buyer should know."""
+  "notes": one short sentence on anything a buyer should know.
+Judge visible wear from the photo. A photo alone cannot prove that an appliance works: do not invent a function test.
+If the item appears broken, unsafe, or incomplete, score it 1-2 so it can be blocked for review."""
+
+
+# Vision models on Crusoe, in order: shared endpoints can be overloaded (429), so fall back to the next one.
+VISION_FALLBACKS = ["google/gemma-4-31b-it", "Qwen/Qwen3.8-27B"]
+
+
+def _ask_vision(content):
+    from core.crusoe_client import MODELS
+    errors = []
+    for model in dict.fromkeys([MODELS["vision"], *VISION_FALLBACKS]):
+        thinking = None if model.startswith("google/") else False
+        try:
+            return _ask(model, INTAKE_SYSTEM, content, 1024, thinking=thinking, timeout=40.0, max_tries=2)
+        except AgentError as e:
+            errors.append(f"{model}: {e}")
+    raise AgentError("all vision models failed: " + " | ".join(errors))
 
 
 def intake_listing(listing, image=None, mime="image/jpeg"):
@@ -70,7 +88,7 @@ def intake_listing(listing, image=None, mime="image/jpeg"):
         content = [{"type": "text", "text": text + "\nUse the photo to identify the item, its condition "
                                                     "and any visible model number."},
                    {"type": "image_url", "image_url": {"url": uri}}]
-        raw = _ask("vision", INTAKE_SYSTEM, content, 1024)
+        raw = _ask_vision(content)
     else:
         raw = _ask("fast", INTAKE_SYSTEM, text, 1024)
     data = parse_json(raw)
@@ -82,6 +100,13 @@ def intake_listing(listing, image=None, mime="image/jpeg"):
         data["quality_score"] = max(1, min(10, int(data.get("quality_score"))))
     except (TypeError, ValueError):
         data["quality_score"] = {"A": 9, "B": 7, "C": 4}[data["condition"]]
+    # Never advertise a better grade than the model's own numeric assessment.
+    score_grade = "A" if data["quality_score"] >= 9 else "B" if data["quality_score"] >= 6 else "C"
+    if rules.QUALITY_RANK[score_grade] < rules.QUALITY_RANK[data["condition"]]:
+        data["condition"] = score_grade
+    # A cautious letter grade also caps an over-optimistic numeric score.
+    cap = {"A": 10, "B": 8, "C": 5}[data["condition"]]
+    data["quality_score"] = min(data["quality_score"], cap)
     if not isinstance(data.get("defects"), list):
         data["defects"] = []
     if data.get("color") not in rules.COLORS:

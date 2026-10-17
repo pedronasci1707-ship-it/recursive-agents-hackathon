@@ -10,6 +10,7 @@ import json
 import sys
 import time
 import uuid
+from pathlib import Path
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone
 
@@ -98,14 +99,32 @@ def run(on_event=None, simulate_outside_buyer=True, max_attempts=3, requests=Non
 
 def _run_intake(listings, inventory, recalls, emit):
     emit("Controller", "info", f"Spinning up {len(listings)} Intake Agents in parallel for move-out listings")
-    results = _parallel(agents.intake_listing, listings)
+    def inspect(listing):
+        rel = listing.get("photo")
+        if not rel:
+            raise agents.AgentError("a product photo is required")
+        static = (Path(__file__).resolve().parents[1] / "static").resolve()
+        path = (static / rel).resolve()
+        if not path.is_relative_to(static) or not path.is_file():
+            raise agents.AgentError("product photo is missing")
+        mime = "image/png" if path.suffix.lower() == ".png" else "image/webp" if path.suffix.lower() == ".webp" else "image/jpeg"
+        return agents.intake_listing(listing, image=path.read_bytes(), mime=mime)
+
+    for listing in listings:
+        emit("Seller photo", "photo_received", f"{listing['id']}: photo {listing.get('photo') or '(missing)'} submitted with the listing",
+             listing_id=listing["id"], photo=listing.get("photo"))
+    results = _parallel(inspect, listings)
     out = []
     for listing, res in zip(listings, results):
         entry = {"listing_id": listing["id"], "seller": listing["seller"], "text": listing["text"],
+                 "photo": listing.get("photo", ""),
                  "accepted": False, "reason": "", "item": None}
         if isinstance(res, Exception):
             entry["reason"] = f"Could not parse the listing ({res}); sent to human review"
             emit("Intake Agent", "escalate", f"{listing['id']}: {entry['reason']}")
+        elif res.get("quality_score", 3) < 3:
+            entry["reason"] = "Rejected: item appears broken or unsafe; needs human inspection"
+            emit("Intake Agent", "verify_fail", f"{listing['id']}: {entry['reason']}")
         elif recall := rules.recall_reason(res.get("model"), recalls):
             entry["reason"] = f"Rejected: model {res.get('model')} is under a safety recall ({recall})"
             emit("Intake Agent", "verify_fail", f"{listing['id']} · {res.get('name')}: {entry['reason']}")
@@ -115,9 +134,12 @@ def _run_intake(listings, inventory, recalls, emit):
                     "quality_score": res.get("quality_score"), "defects": res.get("defects") or [],
                     "photo": listing.get("photo", ""),
                     "color": res.get("color", "other"), "style": res.get("style", "minimal"),
-                    **rules.price_listing(res["category"], res["condition"]),
+                    **rules.price_listing(res["category"], res["condition"], res.get("quality_score")),
                     "status": "available", "reserved_for": None}
             inventory[item["id"]] = item
+            emit("Inventory", "inventory_add",
+                 f"{listing['id']} photo {item['photo']} linked to {item['id']} in the run inventory",
+                 listing_id=listing["id"], item_id=item["id"], photo=item["photo"])
             entry.update(accepted=True, item=item,
                          reason=f"Accepted as {item['id']}: offer seller ${item['acquisition_cost']}, "
                                 f"resell at ${item['resale_price']}")
@@ -131,7 +153,9 @@ def _run_intake(listings, inventory, recalls, emit):
 
 def _build_kits(requests, inventory, recalls, emit, simulate_outside_buyer, max_attempts):
     kits = {r["id"]: {"request_id": r["id"], "buyer": r["buyer"], "profile": r["profile"],
-                      "budget": float(r["budget"]), "needs": r["needs"], "status": "pending", "attempts": 0,
+                      "budget": float(r["budget"]), "needs": r["needs"],
+                      "min_condition": r.get("min_condition"), "item_prefs": r.get("item_prefs") or {},
+                      "status": "pending", "attempts": 0,
                       "items": [], "price": 0.0, "cost": 0.0, "margin": 0.0, "margin_pct": 0.0,
                       "checks": [], "history": [], "rationale": ""} for r in requests}
     feedback = {r["id"]: None for r in requests}
@@ -152,6 +176,10 @@ def _build_kits(requests, inventory, recalls, emit, simulate_outside_buyer, max_
         price = sum(inventory[i]["resale_price"] for i in ids if i in inventory)
         emit(f"Kit Agent · {r['buyer']}", "plan", f"Proposes {', '.join(ids)} (${price:.0f}) · {plan['rationale']}",
              item_ids=ids, buyer=r["buyer"])
+        for iid in ids:
+            if iid in inventory:
+                emit("Inventory", "inventory_take", f"{r['buyer']} selects {iid} with photo {inventory[iid].get('photo') or '(none)'}",
+                     item_id=iid, buyer=r["buyer"], photo=inventory[iid].get("photo"))
 
     def verify_and_commit(r, plan, last_try):
         """Verify one plan against live inventory; reserve on success. True when the kit is done."""

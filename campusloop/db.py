@@ -1,6 +1,6 @@
 """Product database (SQLite): every item for sale, with its photo and quality grade.
 
-The catalog in data/catalog.json seeds the table on first use (and stays in sync with it);
+The catalog in data/catalog.json seeds missing rows without overwriting live reservations;
 items that students sell through the app are added with their uploaded photo.
 """
 
@@ -36,17 +36,19 @@ def _connect():
 
 
 def _seed(con):
-    """Catalog rows always match catalog.json; rows added by sellers are kept."""
+    """Add missing demo stock without undoing reservations from a previous process."""
     for item in rules.load("catalog.json"):
         photo = f"products/{item['id']}.jpg" if (STATIC / "products" / f"{item['id']}.jpg").exists() else ""
-        _write(con, {**item, "photo": photo, "source": "catalog"})
+        score = item.get("quality_score") or {"A": 9, "B": 7, "C": 4}.get(item["condition"])
+        _write(con, {**item, "quality_score": score, "photo": photo, "source": "catalog"}, replace=False)
     con.commit()
 
 
-def _write(con, item):
+def _write(con, item, replace=True):
     row = {f: item.get(f) for f in FIELDS}
     row["defects"] = json.dumps(item.get("defects") or [])
-    con.execute(f"INSERT OR REPLACE INTO products ({', '.join(FIELDS)}) VALUES ({', '.join('?' * len(FIELDS))})",
+    mode = "REPLACE" if replace else "IGNORE"
+    con.execute(f"INSERT OR {mode} INTO products ({', '.join(FIELDS)}) VALUES ({', '.join('?' * len(FIELDS))})",
                 [row[f] for f in FIELDS])
 
 
@@ -68,16 +70,19 @@ def products():
 
 def add_product(item, photo_bytes=None, ext="jpg"):
     """Insert a product sold through the app; saves its photo under static/uploads/. Returns the stored item."""
+    ext = ext.lower()
+    if ext not in {"jpg", "jpeg", "png", "webp"} or not photo_bytes or len(photo_bytes) > 10_000_000:
+        raise ValueError("A JPG, PNG or WebP product photo (up to 10 MB) is required")
     with _connect() as con:
+        con.execute("BEGIN IMMEDIATE")
         prefix = item["id"].split("-")[0] if item.get("id") else "ITEM"
         nums = [int(r[0].split("-")[1]) for r in con.execute("SELECT id FROM products WHERE id LIKE ?", (prefix + "-%",))
                 if r[0].split("-")[1].isdigit()]
         item = {**item, "id": f"{prefix}-{max(nums, default=0) + 1:02d}", "status": "available",
                 "reserved_for": None, "source": "seller"}
-        if photo_bytes:
-            (STATIC / "uploads").mkdir(parents=True, exist_ok=True)
-            (STATIC / "uploads" / f"{item['id']}.{ext}").write_bytes(photo_bytes)
-            item["photo"] = f"uploads/{item['id']}.{ext}"
+        (STATIC / "uploads").mkdir(parents=True, exist_ok=True)
+        (STATIC / "uploads" / f"{item['id']}.{ext}").write_bytes(photo_bytes)
+        item["photo"] = f"uploads/{item['id']}.{ext}"
         _write(con, item)
         con.commit()
     return item

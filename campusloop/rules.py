@@ -21,7 +21,7 @@ CATEGORIES = [
 # Resale price for an Excellent (A) item, by category (USD): ~55-60% of a comparable new item for appliances,
 # lower for generic furniture. Market research and sources: docs/MARKET.md
 BASE_RESALE = {
-    "mini_fridge": 100, "microwave": 50, "desk_lamp": 18, "fan": 22, "desk_chair": 65,
+    "mini_fridge": 100, "microwave": 40, "desk_lamp": 18, "fan": 22, "desk_chair": 65,
     "desk": 60, "storage_bins": 15, "shelf": 30, "kitchen_basics": 35, "other": 15,
 }
 CONDITION_FACTOR = {"A": 1.0, "B": 0.75, "C": 0.5}
@@ -61,10 +61,20 @@ def recall_reason(model, recalls):
     return None
 
 
-def price_listing(category, condition):
-    """Offer to the seller and resale price for a new move-out listing."""
+def price_listing(category, condition, quality_score=None):
+    """Offer and resale price for a listing. Score refines the A/B/C quality band."""
     category = category if category in BASE_RESALE else "other"
-    resale = round(BASE_RESALE[category] * CONDITION_FACTOR.get(condition, 0.5))
+    factor = CONDITION_FACTOR.get(condition, 0.5)
+    if quality_score is not None:
+        try:
+            score = int(quality_score)
+        except (TypeError, ValueError):
+            score = None
+        if score is not None:
+            factor = {3: 0.4, 4: 0.5, 5: 0.6, 6: 0.65, 7: 0.75,
+                      8: 0.85, 9: 0.95, 10: 1.0}.get(score, factor)
+            factor = min(factor, {"A": 1.0, "B": 0.85, "C": 0.6}.get(condition, 0.6))
+    resale = round(BASE_RESALE[category] * factor)
     return {
         "acquisition_cost": round(resale * ACQUISITION_SHARE),
         "refurb_cost": REFURB_COST.get(category, 2),

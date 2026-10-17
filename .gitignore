@@ -15,6 +15,7 @@ __pycache__/
 *.sqlite3
 runs/
 logs/
+static/uploads/
 
 # Editors / OS
 .vscode/
