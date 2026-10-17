@@ -1,0 +1,5 @@
+[
+  {"id": "REQ-1", "buyer": "Ana", "profile": "International student from Brazil, NC State dorm, arriving Aug 12 with no car", "budget": 200, "needs": ["mini_fridge", "desk_lamp", "storage_bins"]},
+  {"id": "REQ-2", "buyer": "Marcus", "profile": "Junior moving into an off-campus apartment, wants the best fridge available", "budget": 260, "needs": ["mini_fridge", "microwave", "kitchen_basics"]},
+  {"id": "REQ-3", "buyer": "Priya", "profile": "Freshman in a dorm, tight budget, studies late at night", "budget": 150, "needs": ["desk_chair", "desk_lamp", "fan"]}
+]

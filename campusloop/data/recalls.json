@@ -1,0 +1,7 @@
+{
+  "note": "SIMULATED recall list for the demo (fictional brands). A production system would query the CPSC recalls API.",
+  "models": {
+    "CC-17": "ChillCube CC-17 mini-fridge: compressor overheating, fire hazard (simulated recall)",
+    "QH-700": "QuickHeat QH-700 microwave: door interlock failure (simulated recall)"
+  }
+}
