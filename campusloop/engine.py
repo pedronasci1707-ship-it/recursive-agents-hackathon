@@ -112,6 +112,7 @@ def _run_intake(listings, inventory, recalls, emit):
         else:
             item = {"id": _new_id(res["category"], inventory), "name": res.get("name") or "Unnamed item",
                     "category": res["category"], "condition": res["condition"], "model": res.get("model") or "",
+                    "color": res.get("color", "other"), "style": res.get("style", "minimal"),
                     **rules.price_listing(res["category"], res["condition"]),
                     "status": "available", "reserved_for": None}
             inventory[item["id"]] = item
@@ -299,7 +300,8 @@ def _fallback_plan(request, snapshot):
     """Naive plan used only when the model call fails: the priciest item per needed category."""
     ids = []
     for need in request["needs"]:
-        options = [i for i in snapshot if i["category"] == need]
+        min_rank = rules.QUALITY_RANK.get(request.get("min_condition"), 0)
+        options = [i for i in snapshot if i["category"] == need and rules.QUALITY_RANK.get(i["condition"], 0) >= min_rank]
         if options:
             ids.append(max(options, key=lambda i: i["resale_price"])["id"])
     return {"item_ids": ids, "rationale": "Fallback plan (model unavailable)."}

@@ -312,11 +312,17 @@ def tile(category, size=64):
             f'<span class="ms" style="font-size:{int(size * .5)}px">{ico}</span></div>')
 
 
+def _look(item):
+    """' · Black · Modern' when the item has a color/style (older recorded runs don't)."""
+    parts = [str(item[k]).capitalize() for k in ("color", "style") if item.get(k) and item.get(k) != "other"]
+    return "".join(f" · {esc(p)}" for p in parts)
+
+
 def line_item(item):
     return (f'<div class="line">{tile(item["category"])}'
             f'<div><div class="name">{esc(item["name"])}</div>'
             f'<div class="meta">{CONDITION.get(item["condition"], item["condition"])} condition · '
-            f'{LABEL.get(item["category"], "Item")}</div></div>'
+            f'{LABEL.get(item["category"], "Item")}{_look(item)}</div></div>'
             f'<div class="price">${item["resale_price"]:.0f}<s>${new_price(item)} new</s></div></div>')
 
 
@@ -327,7 +333,7 @@ def product_card(item):
             f'<span class="pc-cond">{CONDITION.get(item["condition"], item["condition"])}</span>'
             f'<span class="pc-save">-{save}%</span></div>'
             f'<div class="pc-body"><div class="pc-name">{esc(item["name"])}</div>'
-            f'<div class="pc-meta">{LABEL.get(item["category"], "Item")} · inspected &amp; cleaned</div>'
+            f'<div class="pc-meta">{LABEL.get(item["category"], "Item")}{_look(item)} · inspected &amp; cleaned</div>'
             f'<div class="pc-price">${item["resale_price"]:.0f}<s>${new_price(item)}</s></div></div></div>')
 
 

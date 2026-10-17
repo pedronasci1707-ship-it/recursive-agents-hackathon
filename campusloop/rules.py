@@ -23,6 +23,12 @@ BASE_RESALE = {
     "desk": 75, "storage_bins": 18, "shelf": 40, "kitchen_basics": 45, "other": 20,
 }
 CONDITION_FACTOR = {"A": 1.0, "B": 0.75, "C": 0.5}
+# Quality grades, best first: A = Excellent (like new, perfect), B = Good, C = Fair.
+QUALITY_RANK = {"A": 3, "B": 2, "C": 1}
+QUALITY_LABEL = {"A": "Excellent", "B": "Good", "C": "Fair"}
+# Look of an item, used by the Kit Agents to match a student's room (preferences, not hard rules).
+COLORS = ["black", "white", "gray", "silver", "wood", "blue", "green", "red", "other"]
+STYLES = ["minimal", "cozy", "modern", "colorful"]
 REFURB_COST = {
     "mini_fridge": 10, "microwave": 5, "desk_chair": 8, "desk": 10,
     "fan": 3, "shelf": 4, "kitchen_basics": 6,
@@ -117,6 +123,14 @@ def verify_kit(request, item_ids, inventory, recalls):
     check("no_safety_recalls", not recalled,
           "; ".join(f"{i['id']} (model {i['model']}) is under a safety recall: {r}" for i, r in recalled)
           if recalled else "No recalled models")
+
+    min_q = request.get("min_condition")
+    if min_q in QUALITY_RANK:  # quality is a hard rule when the student sets it
+        low = [i for i in items if QUALITY_RANK.get(i["condition"], 0) < QUALITY_RANK[min_q]]
+        check("min_quality", not low,
+              "; ".join(f"{i['id']} ({i['name']}) is {QUALITY_LABEL.get(i['condition'], i['condition'])}, "
+                        f"below the {QUALITY_LABEL[min_q]} quality the student asked for" for i in low)
+              if low else f"Every item is {QUALITY_LABEL[min_q]} quality or better")
 
     covered = {i["category"] for i in items}
     missing = [n for n in request["needs"] if n not in covered]

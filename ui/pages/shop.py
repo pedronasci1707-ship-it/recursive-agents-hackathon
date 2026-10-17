@@ -2,6 +2,7 @@
 
 import streamlit as st
 
+from campusloop import rules
 from ui import components as c
 from ui import state, store
 
@@ -25,13 +26,27 @@ elif u["role"] == "student":
     st.page_link("ui/pages/student.py", label="Build your kit first to add items", icon=":material/arrow_forward:")
 
 items = store.shop_items(res)
+# Recorded runs predate color/style: fill them in from the catalog.
+looks = {i["id"]: i for i in rules.load("catalog.json")}
+items = [{"color": looks.get(i["id"], {}).get("color"), "style": looks.get(i["id"], {}).get("style"), **i}
+         for i in items]
 f1, f2, f3 = st.columns([3, 1.2, 1.2], vertical_alignment="bottom")
 cats = f1.pills("Category", sorted({i["category"] for i in items}, key=list(c.LABEL).index),
                 selection_mode="multi", format_func=lambda k: c.LABEL[k], label_visibility="collapsed")
 sort = f2.selectbox("Sort", list(SORTS), label_visibility="collapsed")
 max_price = f3.slider("Max price", 10, 100, 100, step=5, format="$%d", label_visibility="collapsed")
+g1, g2, g3 = st.columns([1.4, 2.2, 1.6], vertical_alignment="bottom")
+min_q = g1.segmented_control("Quality", ["C", "B", "A"], default="C",
+                             format_func=lambda q: "Any" if q == "C" else f"{c.CONDITION[q]}+" if q == "B" else "Excellent")
+colors = g2.pills("Color", sorted({i["color"] for i in items if i.get("color") and i["color"] != "other"}),
+                  selection_mode="multi", format_func=str.capitalize)
+style = g3.segmented_control("Style", rules.STYLES, format_func=str.capitalize)
 
-shown = sorted((i for i in items if (not cats or i["category"] in cats) and i["resale_price"] <= max_price),
+min_rank = rules.QUALITY_RANK.get(min_q or "C", 1)
+shown = sorted((i for i in items
+                if (not cats or i["category"] in cats) and i["resale_price"] <= max_price
+                and rules.QUALITY_RANK.get(i["condition"], 0) >= min_rank
+                and (not colors or i.get("color") in colors) and (not style or i.get("style") == style)),
                key=SORTS[sort])
 st.caption(f"{len(shown)} items in stock")
 

@@ -73,7 +73,7 @@ with tab_new:
                 st.html(f"""<div class="offer">
                     <div style="display:flex;gap:14px;align-items:center">{c.tile(p["category"])}
                     <div><b>{c.esc(p.get("name", "Item"))}</b><div style="color:var(--muted);font-size:.86rem">
-                    {c.CONDITION.get(p["condition"], p["condition"])} condition · {c.LABEL.get(p["category"], "Item")}</div></div></div>
+                    {c.CONDITION.get(p["condition"], p["condition"])} condition · {c.LABEL.get(p["category"], "Item")}{c._look(p)}</div></div></div>
                     <div style="margin:18px 0 4px;color:var(--muted);font-size:.85rem">Your instant offer</div>
                     <div class="big">${offer["acquisition_cost"]}</div>
                     <div style="color:var(--muted);font-size:.88rem;margin-top:6px">Paid when we pick it up · free pickup</div>
@@ -97,7 +97,7 @@ with tab_new:
                                 st.toast("Pickup booked", icon=":material/task_alt:")
                                 st.rerun()
             with st.expander("What we understood from your listing"):
-                st.json({k: p.get(k) for k in ("name", "category", "condition", "model", "notes")})
+                st.json({k: p.get(k) for k in ("name", "category", "condition", "model", "color", "style", "notes")})
 
 with tab_mine:
     if not mine:

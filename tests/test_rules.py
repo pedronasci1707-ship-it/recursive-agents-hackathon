@@ -54,6 +54,15 @@ def test_low_margin_fails():
     assert any("below" in i for i in issues)
 
 
+def test_min_quality_is_a_hard_rule_when_set():
+    inv = {"F": item("F", "mini_fridge", 90), "L": item("L", "desk_lamp", 20)}
+    inv["L"]["condition"] = "C"
+    _, issues, soft = rules.verify_kit({**REQ, "min_condition": "B"}, ["F", "L"], inv, RECALLS)
+    assert any("below the Good quality" in i for i in issues) and not soft
+    checks, issues, _ = rules.verify_kit(REQ, ["F", "L"], inv, RECALLS)   # no minimum set: no quality check
+    assert not issues and "min_quality" not in {c["name"] for c in checks}
+
+
 def test_price_listing_scales_with_condition():
     a, b = rules.price_listing("mini_fridge", "A"), rules.price_listing("mini_fridge", "B")
     assert a["resale_price"] > b["resale_price"] > 0

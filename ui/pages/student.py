@@ -4,6 +4,7 @@ from datetime import date
 
 import streamlit as st
 
+from campusloop import rules
 from ui import components as c
 from ui import state, store
 
@@ -28,7 +29,9 @@ res = state.result()
 kit = store.kit_for(res, rid)
 prefs = st.session_state.setdefault(f"prefs_{rid}", {
     "move_in": date(2027, 8, 12), "budget": int(req["budget"]), "needs": list(req["needs"]),
+    "min_condition": "B", "colors": [], "style": None,
 })
+QUALITY_OPTIONS = ["C", "B", "A"]   # Fair, Good, Excellent: "at least this good"
 
 
 # ---------------------------------------------------------------- build flow
@@ -43,6 +46,14 @@ def build_page():
         budget = st.slider("Budget", 80, 400, prefs["budget"], step=10, format="$%d")
         needs = st.pills("What do you need?", list(c.LABEL)[:-1], selection_mode="multi",
                          default=prefs["needs"], format_func=lambda k: c.LABEL[k])
+        quality = st.segmented_control(
+            "Minimum quality", QUALITY_OPTIONS, default=prefs.get("min_condition", "B"),
+            format_func=lambda q: f"{c.CONDITION[q]}{' or better' if q != 'A' else ' (like new)'}",
+            help="Our agents never put an item below this quality in your kit.")
+        colors = st.pills("Colors you like", [k for k in rules.COLORS if k != "other"], selection_mode="multi",
+                          default=prefs.get("colors", []), format_func=str.capitalize)
+        style = st.segmented_control("Room style", rules.STYLES, default=prefs.get("style"),
+                                     format_func=str.capitalize)
         go = st.button("Build my kit", type="primary", icon=":material/auto_awesome:", width="stretch")
     with info_col:
         info = st.empty()
@@ -58,8 +69,10 @@ def build_page():
     if not needs:
         st.warning("Pick at least one item you need.")
         return
-    prefs.update(move_in=move_in, budget=budget, needs=list(needs))
-    custom = {**req, "budget": budget, "needs": list(needs),
+    prefs.update(move_in=move_in, budget=budget, needs=list(needs), min_condition=quality or "C",
+                 colors=list(colors), style=style)
+    custom = {**req, "budget": budget, "needs": list(needs), "min_condition": quality or "C",
+              "colors": list(colors), "style": style,
               "profile": f"{req['profile']}. Moving in {move_in:%b %d}"}
     with info.container(), st.status("Building your kit…", expanded=True) as box:
         shown = set()
@@ -141,7 +154,12 @@ with left:
             st.markdown("- An item we picked sold to someone else while we were building your kit, so we replaced it.")
         if "safety recall" in caught:
             st.markdown("- We blocked an item whose model is under a safety recall and chose a safe alternative.")
-        for chk, text in [("available_now", "Every item is in stock and reserved for you"),
+        if "quality the student asked for" in caught:
+            st.markdown("- We swapped an item that was below the quality you asked for.")
+        min_q = prefs.get("min_condition")
+        quality_row = [("min_quality", f"Every item is {c.CONDITION[min_q]} quality or better")] \
+            if any(x["name"] == "min_quality" for x in kit["checks"]) and min_q in c.CONDITION else []
+        for chk, text in quality_row + [("available_now", "Every item is in stock and reserved for you"),
                           ("no_safety_recalls", "No recalled models"),
                           ("covers_needs", "Covers everything you asked for"),
                           ("within_budget", "Fits your budget")]:

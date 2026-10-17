@@ -51,8 +51,12 @@ Turn a seller's free-text listing into structured data.
 Reply with ONLY a JSON object with these keys:
   "name": short product name (brand + product if known),
   "category": one of {rules.CATEGORIES},
-  "condition": "A" (like new), "B" (used, works fine, cosmetic wear) or "C" (worn or questionable),
+  "condition": quality grade, the most important field. "A" = Excellent (like new, perfect, no visible wear),
+               "B" = Good (used, works fine, light cosmetic wear), "C" = Fair (worn, scratches or dents, but works).
+               Grade from the evidence (photo, age, words like "scratched", "like new"); when unsure, pick the lower grade,
   "model": the model number exactly as written by the seller, or "" if none,
+  "color": main color, one of {rules.COLORS},
+  "style": the look it fits best, one of {rules.STYLES},
   "notes": one short sentence on anything a buyer should know."""
 
 
@@ -72,6 +76,10 @@ def intake_listing(listing, image=None, mime="image/jpeg"):
         data["category"] = "other"
     if data.get("condition") not in rules.CONDITION_FACTOR:
         data["condition"] = "C"
+    if data.get("color") not in rules.COLORS:
+        data["color"] = "other"
+    if data.get("style") not in rules.STYLES:
+        data["style"] = "minimal"
     return data
 
 
@@ -80,7 +88,10 @@ Rules:
 - Pick exactly one item for each category in the student's needs, using ONLY item IDs from the available list.
 - The kit price is the sum of item prices and must not exceed the student's budget.
 - CampusLoop spends ${rules.DELIVERY_COST:.0f} delivering each kit; the kit margin must stay at or above {rules.MIN_MARGIN_PCT:.0f}% of the price.
-- Prefer better condition (A > B > C) when the budget allows, and respect the student's profile.
+- Quality comes first: condition A = Excellent, B = Good, C = Fair. NEVER pick an item below the student's minimum quality.
+  Above that minimum, prefer better condition when the budget allows.
+- Then match the room: prefer items in the student's colors and room style. These are preferences, not hard rules:
+  a safe, in-budget kit beats a perfect color match. Mention the match in the rationale.
 - If a Verifier rejected your previous proposal, fix EVERY issue it reported.
 - If no combination can satisfy every rule, return the closest valid combination and say so in the rationale.
 Reply with ONLY a JSON object: {{"item_ids": ["ID", ...], "rationale": "one or two sentences"}}"""
@@ -88,6 +99,7 @@ Reply with ONLY a JSON object: {{"item_ids": ["ID", ...], "rationale": "one or t
 
 def _inventory_table(items):
     rows = [f"{i['id']} | {i['name']} | {i['category']} | condition {i['condition']} | model {i['model']} "
+            f"| color {i.get('color', 'unknown')} | style {i.get('style', 'unknown')} "
             f"| price ${i['resale_price']} | unit margin ${rules.unit_margin(i)}" for i in items]
     return "\n".join(rows)
 
@@ -96,9 +108,15 @@ def plan_kit(request, available_items, feedback=None, shared_notes=None):
     user = (
         f"Student: {request['buyer']} ({request['profile']})\n"
         f"Budget: ${request['budget']}\n"
-        f"Needs: {', '.join(request['needs'])}\n\n"
-        f"Available inventory (snapshot):\n{_inventory_table(available_items)}"
+        f"Needs: {', '.join(request['needs'])}\n"
     )
+    if request.get("min_condition") in rules.QUALITY_LABEL:
+        user += f"Minimum quality: {rules.QUALITY_LABEL[request['min_condition']]} (condition {request['min_condition']}) or better\n"
+    if request.get("colors"):
+        user += f"Preferred colors: {', '.join(request['colors'])}\n"
+    if request.get("style"):
+        user += f"Room style: {request['style']}\n"
+    user += f"\nAvailable inventory (snapshot):\n{_inventory_table(available_items)}"
     if shared_notes:
         user += "\n\nTeam notes from the Verifier (apply them):\n- " + "\n- ".join(shared_notes)
     if feedback:
