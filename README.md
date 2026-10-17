@@ -80,6 +80,25 @@ while they are planning, a walk-in buyer from outside the system buys the best m
 
 If a kit still fails after the attempt limit, the Controller escalates it to a human instead of shipping a bad kit.
 
+## Business model
+
+CampusLoop sits between two groups of students on the same campus, a few weeks apart:
+
+- **Move-out:** we buy working items from students who are leaving, at 35% of the expected resale price,
+  instead of them dumping the items.
+- **Move-in:** we refurbish the items and sell them to incoming students as ready-made kits (fridge + microwave +
+  kitchen basics, desk chair + lamp + fan...), delivered for a flat cost, always above a 30% margin.
+
+**Go-to-market:** partner with student apartment buildings, which already run move-out and move-in days and
+want less dumpster waste. The first pilot target is student housing near **NC State** (Raleigh, NC).
+
+**Why agents:** the business has two short, intense peaks a year, with hundreds of messy listings,
+changing inventory and many buyers at once. A team of agents that plans in parallel and never ships an
+unverified kit lets a tiny team run that peak; humans only see what the agents escalate.
+
+The app shows the impact of each run: items given a second life, estimated savings for students versus buying
+new, money paid to move-out sellers, and CampusLoop's profit.
+
 ## Built on Crusoe
 
 Every model call goes through **Crusoe Managed Inference** (`api.inference.crusoecloud.com`), with

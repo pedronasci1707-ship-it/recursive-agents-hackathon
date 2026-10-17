@@ -32,6 +32,11 @@ KIT_STATUS = {
     "failed": ("❌", "failed", "red"),
     "pending": ("⏳", "pending", "gray"),
 }
+# Rough price of a comparable NEW item (USD), only for the "students saved" estimate in the impact row.
+NEW_RETAIL = {
+    "mini_fridge": 170, "microwave": 90, "desk_lamp": 30, "fan": 40, "desk_chair": 120,
+    "desk": 150, "storage_bins": 30, "shelf": 60, "kitchen_basics": 70, "other": 30,
+}
 RUN_STATUS = {
     "done": ("✅ Done", "Every kit verified and the final audit passed."),
     "done_with_escalations": ("⚠️ Done with escalations", "Some kits were handed to a human instead of shipping a bad kit."),
@@ -172,6 +177,24 @@ m[1].metric("Failed attempts fixed", retries)
 m[2].metric("Unsafe listings blocked", blocked)
 m[3].metric("Duration", f"{result['duration_s']:.1f}s")
 m[4].metric("Tokens", f"{tokens:,}")
+
+# ---------------------------------------------------------------- impact
+shipped = [i for k in kits if k["status"] == "verified" for i in k["items"]]
+paid_by_students = sum(k["price"] for k in kits if k["status"] == "verified")
+new_cost = sum(NEW_RETAIL.get(i["category"], NEW_RETAIL["other"]) for i in shipped)
+st.subheader("Impact of this run")
+m = st.columns(4)
+m[0].metric("Items given a second life", len(shipped), help="Move-out items placed in a verified kit instead of a dumpster.")
+m[1].metric("Students saved (est.)", f"${max(new_cost - paid_by_students, 0):,.0f}",
+            help="Estimated price of the same items bought new, minus what the students pay. See assumptions below.")
+m[2].metric("Paid to move-out sellers", f"${sum(i['acquisition_cost'] for i in shipped):,.0f}",
+            help="What CampusLoop pays the students who are moving out for these items.")
+m[3].metric("CampusLoop profit", f"${sum(k['margin'] for k in kits if k['status'] == 'verified'):,.0f}",
+            help="Kit prices minus acquisition, refurbishing and delivery. Every kit keeps at least a 30% margin.")
+with st.expander("Assumptions: typical new retail price per category"):
+    st.dataframe([{"Category": c.replace("_", " "), "New (USD)": f"${p}"} for c, p in NEW_RETAIL.items()],
+                 hide_index=True)
+    st.caption("Rough US retail prices for comparable new items, used only for the savings estimate.")
 
 # ---------------------------------------------------------------- done means done
 st.subheader("Done means done: what the Verifier caught")
