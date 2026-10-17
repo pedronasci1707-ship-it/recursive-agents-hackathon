@@ -1,7 +1,7 @@
 """CampusLoop AI: storefront for students and sellers, plus an admin view of the agents.
 
 Run from the repo root:  streamlit run app.py
-Customers only see the store. The agents' reasoning (live split screen, operations console) is admin-only.
+Customers only see the store. The agents' reasoning (agent control room) is admin-only.
 """
 
 import streamlit as st
@@ -17,18 +17,14 @@ PAGES = {
     "kit": st.Page("ui/pages/student.py", title="My kit", url_path="my-kit"),
     "shop": st.Page("ui/pages/shop.py", title="Shop", url_path="shop"),
     "sell": st.Page("ui/pages/seller.py", title="Sell", url_path="sell"),
-    "live": st.Page("ui/pages/live.py", title="Live: agents at work", icon=":material/bolt:", url_path="live"),
-    "flow": st.Page("ui/pages/flow.py", title="How it works", icon=":material/account_tree:", url_path="how-it-works"),
-    "ops": st.Page("ui/pages/operations.py", title="Operations console", icon=":material/monitoring:",
-                   url_path="operations"),
-    "preview": st.Page("ui/pages/student.py", title="Storefront preview", icon=":material/storefront:",
-                       url_path="preview"),
+    "control": st.Page("ui/pages/control.py", title="Agent control room", icon=":material/hub:",
+                       url_path="control-room"),
 }
 # The first page in each list is where that role lands after signing in.
 BY_ROLE = {
     "student": ["kit", "shop", "sell"],
     "seller": ["sell", "shop"],
-    "admin": ["live", "flow", "ops", "preview", "demo"],
+    "admin": ["control"],
 }
 
 user = state.user()
