@@ -1,0 +1,937 @@
+{
+  "run_id": "db7502e3",
+  "status": "done",
+  "started_at": "2026-10-17T20:13:16+00:00",
+  "finished_at": "2026-10-17T20:13:28+00:00",
+  "duration_s": 11.66,
+  "config": {
+    "max_attempts": 3,
+    "min_margin_pct": 30.0,
+    "simulate_outside_buyer": true,
+    "models": {
+      "planner": "nvidia/NVIDIA-Nemotron-3-Super-120B-A12B",
+      "worker": "nvidia/Nemotron-3.5-Lightning-30B-A3B",
+      "fast": "deepseek-ai/Deepseek-V4-Flash",
+      "tools": "openai/gpt-oss-120b"
+    }
+  },
+  "intake": [
+    {
+      "listing_id": "LIST-1",
+      "seller": "Jake (moving out Friday)",
+      "text": "Selling my ChillCube mini fridge before move-out!! model CC-17, works great, $40 obo, pickup at Wolf Village",
+      "accepted": false,
+      "reason": "Rejected: model CC-17 is under a safety recall (ChillCube CC-17 mini-fridge: compressor overheating, fire hazard (simulated recall))",
+      "item": null
+    },
+    {
+      "listing_id": "LIST-2",
+      "seller": "Mei",
+      "text": "black desk lamp w/ USB charging port, like new, used one semester. Model TT-DL13. free if you pick up today",
+      "accepted": true,
+      "reason": "Accepted as LAMP-04: offer seller $8, resell at $22",
+      "item": {
+        "id": "LAMP-04",
+        "name": "Black Desk Lamp with USB Charging Port",
+        "category": "desk_lamp",
+        "condition": "A",
+        "model": "TT-DL13",
+        "acquisition_cost": 8,
+        "refurb_cost": 2,
+        "resale_price": 22,
+        "status": "reserved",
+        "reserved_for": "Ana (REQ-1)"
+      }
+    },
+    {
+      "listing_id": "LIST-3",
+      "seller": "Tom",
+      "text": "20 inch box fan, a bit dusty but runs fine on all 3 speeds, Lasko 3733",
+      "accepted": true,
+      "reason": "Accepted as FAN-02: offer seller $7, resell at $21",
+      "item": {
+        "id": "FAN-02",
+        "name": "Lasko 20 inch box fan",
+        "category": "fan",
+        "condition": "B",
+        "model": "3733",
+        "acquisition_cost": 7,
+        "refurb_cost": 3,
+        "resale_price": 21,
+        "status": "available",
+        "reserved_for": null
+      }
+    }
+  ],
+  "kits": [
+    {
+      "request_id": "REQ-1",
+      "buyer": "Ana",
+      "profile": "International student from Brazil, NC State dorm, arriving Aug 12 with no car",
+      "budget": 200.0,
+      "needs": [
+        "mini_fridge",
+        "desk_lamp",
+        "storage_bins"
+      ],
+      "status": "verified",
+      "attempts": 3,
+      "items": [
+        {
+          "id": "FRIDGE-04",
+          "name": "Midea 1.6 cu ft mini-fridge",
+          "category": "mini_fridge",
+          "condition": "B",
+          "model": "MD-RC16",
+          "acquisition_cost": 18,
+          "refurb_cost": 8,
+          "resale_price": 55,
+          "status": "reserved",
+          "reserved_for": "Ana (REQ-1)"
+        },
+        {
+          "id": "LAMP-04",
+          "name": "Black Desk Lamp with USB Charging Port",
+          "category": "desk_lamp",
+          "condition": "A",
+          "model": "TT-DL13",
+          "acquisition_cost": 8,
+          "refurb_cost": 2,
+          "resale_price": 22,
+          "status": "reserved",
+          "reserved_for": "Ana (REQ-1)"
+        },
+        {
+          "id": "BINS-01",
+          "name": "Set of 3 storage bins",
+          "category": "storage_bins",
+          "condition": "A",
+          "model": "SB-3",
+          "acquisition_cost": 5,
+          "refurb_cost": 1,
+          "resale_price": 18,
+          "status": "reserved",
+          "reserved_for": "Ana (REQ-1)"
+        }
+      ],
+      "price": 95.0,
+      "cost": 62.0,
+      "margin": 33.0,
+      "margin_pct": 34.7,
+      "checks": [
+        {
+          "name": "items_exist",
+          "passed": true,
+          "detail": "All items exist in inventory"
+        },
+        {
+          "name": "no_duplicates",
+          "passed": true,
+          "detail": "No duplicate items"
+        },
+        {
+          "name": "available_now",
+          "passed": true,
+          "detail": "Every item is still available in live inventory"
+        },
+        {
+          "name": "no_safety_recalls",
+          "passed": true,
+          "detail": "No recalled models"
+        },
+        {
+          "name": "covers_needs",
+          "passed": true,
+          "detail": "Covers every need: mini_fridge, desk_lamp, storage_bins"
+        },
+        {
+          "name": "within_budget",
+          "passed": true,
+          "detail": "Price $95 fits the $200 budget"
+        },
+        {
+          "name": "min_margin",
+          "passed": true,
+          "detail": "Margin 35% ($33) meets the 30% minimum"
+        }
+      ],
+      "history": [
+        {
+          "attempt": 1,
+          "item_ids": [
+            "FRIDGE-01",
+            "LAMP-01",
+            "BINS-01"
+          ],
+          "passed": false,
+          "issues": [
+            "FRIDGE-01 (Galanz 3.1 cu ft mini-fridge) is already reserved for walk-in buyer (outside CampusLoop)"
+          ]
+        },
+        {
+          "attempt": 2,
+          "item_ids": [
+            "FRIDGE-03",
+            "LAMP-04",
+            "BINS-01"
+          ],
+          "passed": false,
+          "issues": [
+            "FRIDGE-03 (model CC-17) is under a safety recall: ChillCube CC-17 mini-fridge: compressor overheating, fire hazard (simulated recall)"
+          ]
+        },
+        {
+          "attempt": 3,
+          "item_ids": [
+            "FRIDGE-04",
+            "LAMP-04",
+            "BINS-01"
+          ],
+          "passed": true,
+          "issues": []
+        }
+      ],
+      "rationale": "Selected FRIDGE-04 (condition B, safe model) for mini_fridge, LAMP-04 (condition A, includes USB charging) for desk_lamp, and BINS-01 (condition A) for storage_bins. Total price is $95, well under the $200 budget, leaving room for delivery cost and ensuring a strong margin. All items meet the student's needs and avoid the recalled FRIDGE-03."
+    },
+    {
+      "request_id": "REQ-2",
+      "buyer": "Marcus",
+      "profile": "Junior moving into an off-campus apartment, wants the best fridge available",
+      "budget": 260.0,
+      "needs": [
+        "mini_fridge",
+        "microwave",
+        "kitchen_basics"
+      ],
+      "status": "verified",
+      "attempts": 2,
+      "items": [
+        {
+          "id": "FRIDGE-02",
+          "name": "Insignia 2.6 cu ft mini-fridge",
+          "category": "mini_fridge",
+          "condition": "B",
+          "model": "NS-CF26",
+          "acquisition_cost": 25,
+          "refurb_cost": 12,
+          "resale_price": 70,
+          "status": "reserved",
+          "reserved_for": "Marcus (REQ-2)"
+        },
+        {
+          "id": "MICRO-01",
+          "name": "Hamilton Beach 0.9 cu ft microwave",
+          "category": "microwave",
+          "condition": "A",
+          "model": "HB-EM925",
+          "acquisition_cost": 20,
+          "refurb_cost": 5,
+          "resale_price": 55,
+          "status": "reserved",
+          "reserved_for": "Marcus (REQ-2)"
+        },
+        {
+          "id": "KITCH-01",
+          "name": "Kitchen starter set (pots, pan, utensils)",
+          "category": "kitchen_basics",
+          "condition": "B",
+          "model": "KS-12",
+          "acquisition_cost": 15,
+          "refurb_cost": 6,
+          "resale_price": 45,
+          "status": "reserved",
+          "reserved_for": "Marcus (REQ-2)"
+        }
+      ],
+      "price": 170.0,
+      "cost": 103.0,
+      "margin": 67.0,
+      "margin_pct": 39.4,
+      "checks": [
+        {
+          "name": "items_exist",
+          "passed": true,
+          "detail": "All items exist in inventory"
+        },
+        {
+          "name": "no_duplicates",
+          "passed": true,
+          "detail": "No duplicate items"
+        },
+        {
+          "name": "available_now",
+          "passed": true,
+          "detail": "Every item is still available in live inventory"
+        },
+        {
+          "name": "no_safety_recalls",
+          "passed": true,
+          "detail": "No recalled models"
+        },
+        {
+          "name": "covers_needs",
+          "passed": true,
+          "detail": "Covers every need: mini_fridge, microwave, kitchen_basics"
+        },
+        {
+          "name": "within_budget",
+          "passed": true,
+          "detail": "Price $170 fits the $260 budget"
+        },
+        {
+          "name": "min_margin",
+          "passed": true,
+          "detail": "Margin 39% ($67) meets the 30% minimum"
+        }
+      ],
+      "history": [
+        {
+          "attempt": 1,
+          "item_ids": [
+            "FRIDGE-01",
+            "MICRO-01",
+            "KITCH-01"
+          ],
+          "passed": false,
+          "issues": [
+            "FRIDGE-01 (Galanz 3.1 cu ft mini-fridge) is already reserved for walk-in buyer (outside CampusLoop)"
+          ]
+        },
+        {
+          "attempt": 2,
+          "item_ids": [
+            "FRIDGE-02",
+            "MICRO-01",
+            "KITCH-01"
+          ],
+          "passed": true,
+          "issues": []
+        }
+      ],
+      "rationale": "Selected the best available non-recalled fridge (FRIDGE-02, condition B), paired with the highest-condition microwave (MICRO-01, condition A) and kitchen basics (KITCH-01, condition B) to meet Marcus's need for quality within budget."
+    },
+    {
+      "request_id": "REQ-3",
+      "buyer": "Priya",
+      "profile": "Freshman in a dorm, tight budget, studies late at night",
+      "budget": 150.0,
+      "needs": [
+        "desk_chair",
+        "desk_lamp",
+        "fan"
+      ],
+      "status": "verified",
+      "attempts": 1,
+      "items": [
+        {
+          "id": "CHAIR-01",
+          "name": "Mesh office chair",
+          "category": "desk_chair",
+          "condition": "A",
+          "model": "MC-500",
+          "acquisition_cost": 30,
+          "refurb_cost": 8,
+          "resale_price": 75,
+          "status": "reserved",
+          "reserved_for": "Priya (REQ-3)"
+        },
+        {
+          "id": "LAMP-01",
+          "name": "LED desk lamp with USB port",
+          "category": "desk_lamp",
+          "condition": "A",
+          "model": "DL-200",
+          "acquisition_cost": 6,
+          "refurb_cost": 2,
+          "resale_price": 22,
+          "status": "reserved",
+          "reserved_for": "Priya (REQ-3)"
+        },
+        {
+          "id": "FAN-01",
+          "name": "Lasko 20-inch box fan",
+          "category": "fan",
+          "condition": "B",
+          "model": "LK-3733",
+          "acquisition_cost": 8,
+          "refurb_cost": 3,
+          "resale_price": 25,
+          "status": "reserved",
+          "reserved_for": "Priya (REQ-3)"
+        }
+      ],
+      "price": 122.0,
+      "cost": 77.0,
+      "margin": 45.0,
+      "margin_pct": 36.9,
+      "checks": [
+        {
+          "name": "items_exist",
+          "passed": true,
+          "detail": "All items exist in inventory"
+        },
+        {
+          "name": "no_duplicates",
+          "passed": true,
+          "detail": "No duplicate items"
+        },
+        {
+          "name": "available_now",
+          "passed": true,
+          "detail": "Every item is still available in live inventory"
+        },
+        {
+          "name": "no_safety_recalls",
+          "passed": true,
+          "detail": "No recalled models"
+        },
+        {
+          "name": "covers_needs",
+          "passed": true,
+          "detail": "Covers every need: desk_chair, desk_lamp, fan"
+        },
+        {
+          "name": "within_budget",
+          "passed": true,
+          "detail": "Price $122 fits the $150 budget"
+        },
+        {
+          "name": "min_margin",
+          "passed": true,
+          "detail": "Margin 37% ($45) meets the 30% minimum"
+        }
+      ],
+      "history": [
+        {
+          "attempt": 1,
+          "item_ids": [
+            "CHAIR-01",
+            "LAMP-01",
+            "FAN-01"
+          ],
+          "passed": true,
+          "issues": []
+        }
+      ],
+      "rationale": "Selected the best-condition desk chair (A), desk lamp (A), and fan (B) to meet Priya's needs for late-night studying while staying within budget. Total cost is $122, leaving room for margin and delivery."
+    }
+  ],
+  "events": [
+    {
+      "ts": 0.0,
+      "agent": "Controller",
+      "kind": "info",
+      "message": "Goal: process 3 move-out listings and deliver verified kits to 3 incoming students. Limits: 3 attempts per kit, 30% minimum margin.",
+      "data": {}
+    },
+    {
+      "ts": 0.0,
+      "agent": "Controller",
+      "kind": "info",
+      "message": "Spinning up 3 Intake Agents in parallel for move-out listings",
+      "data": {}
+    },
+    {
+      "ts": 1.12,
+      "agent": "Intake Agent",
+      "kind": "verify_fail",
+      "message": "LIST-1 · ChillCube mini fridge: Rejected: model CC-17 is under a safety recall (ChillCube CC-17 mini-fridge: compressor overheating, fire hazard (simulated recall))",
+      "data": {}
+    },
+    {
+      "ts": 1.12,
+      "agent": "Intake Agent",
+      "kind": "intake",
+      "message": "LIST-2 → LAMP-04 Black Desk Lamp with USB Charging Port (condition A): offer seller $8, resell at $22",
+      "data": {}
+    },
+    {
+      "ts": 1.12,
+      "agent": "Intake Agent",
+      "kind": "intake",
+      "message": "LIST-3 → FAN-02 Lasko 20 inch box fan (condition B): offer seller $7, resell at $21",
+      "data": {}
+    },
+    {
+      "ts": 1.12,
+      "agent": "Controller",
+      "kind": "info",
+      "message": "Round 1: 3 Kit Agents planning in parallel from the same inventory snapshot (18 available items)",
+      "data": {}
+    },
+    {
+      "ts": 3.06,
+      "agent": "Kit Agent · Ana",
+      "kind": "plan",
+      "message": "Proposes FRIDGE-01, LAMP-01, BINS-01 ($135) · Selected the highest-condition mini-fridge (A) and desk lamp (A) within budget, paired with storage bins (A) to meet all needs. Total cost $135 leaves room for budget and ensures strong margin.",
+      "data": {
+        "item_ids": [
+          "FRIDGE-01",
+          "LAMP-01",
+          "BINS-01"
+        ]
+      }
+    },
+    {
+      "ts": 3.06,
+      "agent": "Kit Agent · Marcus",
+      "kind": "plan",
+      "message": "Proposes FRIDGE-01, MICRO-01, KITCH-01 ($195) · Selected the best available fridge (FRIDGE-01, condition A) per student request, paired with condition A microwave and kitchen basics. Total price $195 leaves room within budget while maintaining strong margin.",
+      "data": {
+        "item_ids": [
+          "FRIDGE-01",
+          "MICRO-01",
+          "KITCH-01"
+        ]
+      }
+    },
+    {
+      "ts": 3.06,
+      "agent": "Kit Agent · Priya",
+      "kind": "plan",
+      "message": "Proposes CHAIR-01, LAMP-01, FAN-01 ($122) · Selected the best-condition desk chair (A), desk lamp (A), and fan (B) to meet Priya's needs for late-night studying while staying within budget. Total cost is $122, leaving room for margin and delivery.",
+      "data": {
+        "item_ids": [
+          "CHAIR-01",
+          "LAMP-01",
+          "FAN-01"
+        ]
+      }
+    },
+    {
+      "ts": 3.06,
+      "agent": "Outside world",
+      "kind": "reserve",
+      "message": "A walk-in buyer just bought FRIDGE-01 (Galanz 3.1 cu ft mini-fridge): inventory changed while the agents were planning",
+      "data": {
+        "item_id": "FRIDGE-01"
+      }
+    },
+    {
+      "ts": 3.06,
+      "agent": "Verifier",
+      "kind": "info",
+      "message": "Checking every proposal against LIVE inventory, safety recalls, budget and margin",
+      "data": {}
+    },
+    {
+      "ts": 3.06,
+      "agent": "Verifier",
+      "kind": "conflict",
+      "message": "Ana's kit REJECTED: FRIDGE-01 (Galanz 3.1 cu ft mini-fridge) is already reserved for walk-in buyer (outside CampusLoop)",
+      "data": {}
+    },
+    {
+      "ts": 3.06,
+      "agent": "Controller",
+      "kind": "replan",
+      "message": "Not done yet: sending the Verifier's feedback back to Kit Agent · Ana to replan",
+      "data": {}
+    },
+    {
+      "ts": 3.06,
+      "agent": "Verifier",
+      "kind": "conflict",
+      "message": "Marcus's kit REJECTED: FRIDGE-01 (Galanz 3.1 cu ft mini-fridge) is already reserved for walk-in buyer (outside CampusLoop)",
+      "data": {}
+    },
+    {
+      "ts": 3.06,
+      "agent": "Controller",
+      "kind": "replan",
+      "message": "Not done yet: sending the Verifier's feedback back to Kit Agent · Marcus to replan",
+      "data": {}
+    },
+    {
+      "ts": 3.06,
+      "agent": "Verifier",
+      "kind": "verify_pass",
+      "message": "Priya's kit passed all 7 checks: $122, margin 37%",
+      "data": {}
+    },
+    {
+      "ts": 3.06,
+      "agent": "Controller",
+      "kind": "reserve",
+      "message": "Reserved CHAIR-01, LAMP-01, FAN-01 for Priya",
+      "data": {}
+    },
+    {
+      "ts": 3.06,
+      "agent": "Controller",
+      "kind": "info",
+      "message": "Round 2: 2 Kit Agent(s) replanning one at a time against live inventory",
+      "data": {}
+    },
+    {
+      "ts": 6.03,
+      "agent": "Kit Agent · Ana",
+      "kind": "plan",
+      "message": "Proposes FRIDGE-03, LAMP-04, BINS-01 ($100) · Selected condition A mini-fridge within budget, condition A desk lamp with USB for international student convenience, and condition A storage bins. Total cost $100 leaves room for budget and ensures >30% margin after delivery.",
+      "data": {
+        "item_ids": [
+          "FRIDGE-03",
+          "LAMP-04",
+          "BINS-01"
+        ]
+      }
+    },
+    {
+      "ts": 6.03,
+      "agent": "Verifier",
+      "kind": "verify_fail",
+      "message": "Ana's kit REJECTED: FRIDGE-03 (model CC-17) is under a safety recall: ChillCube CC-17 mini-fridge: compressor overheating, fire hazard (simulated recall)",
+      "data": {}
+    },
+    {
+      "ts": 6.03,
+      "agent": "Controller",
+      "kind": "info",
+      "message": "Broadcast to all Kit Agents: FRIDGE-03 is a recalled model (CC-17): never use it",
+      "data": {}
+    },
+    {
+      "ts": 6.03,
+      "agent": "Controller",
+      "kind": "replan",
+      "message": "Not done yet: sending the Verifier's feedback back to Kit Agent · Ana to replan",
+      "data": {}
+    },
+    {
+      "ts": 8.08,
+      "agent": "Kit Agent · Marcus",
+      "kind": "plan",
+      "message": "Proposes FRIDGE-02, MICRO-01, KITCH-01 ($170) · Selected the best available non-recalled fridge (FRIDGE-02, condition B), paired with the highest-condition microwave (MICRO-01, condition A) and kitchen basics (KITCH-01, condition B) to meet Marcus's need for quality within budget.",
+      "data": {
+        "item_ids": [
+          "FRIDGE-02",
+          "MICRO-01",
+          "KITCH-01"
+        ]
+      }
+    },
+    {
+      "ts": 8.08,
+      "agent": "Verifier",
+      "kind": "verify_pass",
+      "message": "Marcus's kit passed all 7 checks: $170, margin 39%",
+      "data": {}
+    },
+    {
+      "ts": 8.08,
+      "agent": "Controller",
+      "kind": "reserve",
+      "message": "Reserved FRIDGE-02, MICRO-01, KITCH-01 for Marcus",
+      "data": {}
+    },
+    {
+      "ts": 8.08,
+      "agent": "Controller",
+      "kind": "info",
+      "message": "Round 3: 1 Kit Agent(s) replanning one at a time against live inventory",
+      "data": {}
+    },
+    {
+      "ts": 10.81,
+      "agent": "Kit Agent · Ana",
+      "kind": "plan",
+      "message": "Proposes FRIDGE-04, LAMP-04, BINS-01 ($95) · Selected FRIDGE-04 (condition B, safe model) for mini_fridge, LAMP-04 (condition A, includes USB charging) for desk_lamp, and BINS-01 (condition A) for storage_bins. Total price is $95, well under the $200 budget, leaving room for delivery cost and ensuring a strong margin. All items meet the student's needs and avoid the recalled FRIDGE-03.",
+      "data": {
+        "item_ids": [
+          "FRIDGE-04",
+          "LAMP-04",
+          "BINS-01"
+        ]
+      }
+    },
+    {
+      "ts": 10.82,
+      "agent": "Verifier",
+      "kind": "verify_pass",
+      "message": "Ana's kit passed all 7 checks: $95, margin 35%",
+      "data": {}
+    },
+    {
+      "ts": 10.82,
+      "agent": "Controller",
+      "kind": "reserve",
+      "message": "Reserved FRIDGE-04, LAMP-04, BINS-01 for Ana",
+      "data": {}
+    },
+    {
+      "ts": 10.82,
+      "agent": "Verifier",
+      "kind": "verify_pass",
+      "message": "Final audit passed: 3 verified kit(s), 9 reserved items, 0 double-bookings, 0 recalled items shipped",
+      "data": {}
+    },
+    {
+      "ts": 11.66,
+      "agent": "Reporter",
+      "kind": "info",
+      "message": "Done Report written",
+      "data": {}
+    },
+    {
+      "ts": 11.66,
+      "agent": "Controller",
+      "kind": "done",
+      "message": "Done means done: 3/3 kits verified, 1 unsafe/unclear listing(s) blocked. Stopping.",
+      "data": {}
+    }
+  ],
+  "inventory": [
+    {
+      "id": "FRIDGE-01",
+      "name": "Galanz 3.1 cu ft mini-fridge",
+      "category": "mini_fridge",
+      "condition": "A",
+      "model": "GLR31TBK",
+      "acquisition_cost": 35,
+      "refurb_cost": 10,
+      "resale_price": 95,
+      "status": "reserved",
+      "reserved_for": "walk-in buyer (outside CampusLoop)"
+    },
+    {
+      "id": "FRIDGE-02",
+      "name": "Insignia 2.6 cu ft mini-fridge",
+      "category": "mini_fridge",
+      "condition": "B",
+      "model": "NS-CF26",
+      "acquisition_cost": 25,
+      "refurb_cost": 12,
+      "resale_price": 70,
+      "status": "reserved",
+      "reserved_for": "Marcus (REQ-2)"
+    },
+    {
+      "id": "FRIDGE-03",
+      "name": "ChillCube 1.7 cu ft mini-fridge",
+      "category": "mini_fridge",
+      "condition": "A",
+      "model": "CC-17",
+      "acquisition_cost": 20,
+      "refurb_cost": 5,
+      "resale_price": 60,
+      "status": "available",
+      "reserved_for": null
+    },
+    {
+      "id": "FRIDGE-04",
+      "name": "Midea 1.6 cu ft mini-fridge",
+      "category": "mini_fridge",
+      "condition": "B",
+      "model": "MD-RC16",
+      "acquisition_cost": 18,
+      "refurb_cost": 8,
+      "resale_price": 55,
+      "status": "reserved",
+      "reserved_for": "Ana (REQ-1)"
+    },
+    {
+      "id": "MICRO-01",
+      "name": "Hamilton Beach 0.9 cu ft microwave",
+      "category": "microwave",
+      "condition": "A",
+      "model": "HB-EM925",
+      "acquisition_cost": 20,
+      "refurb_cost": 5,
+      "resale_price": 55,
+      "status": "reserved",
+      "reserved_for": "Marcus (REQ-2)"
+    },
+    {
+      "id": "MICRO-02",
+      "name": "QuickHeat 700W microwave",
+      "category": "microwave",
+      "condition": "B",
+      "model": "QH-700",
+      "acquisition_cost": 12,
+      "refurb_cost": 5,
+      "resale_price": 40,
+      "status": "available",
+      "reserved_for": null
+    },
+    {
+      "id": "LAMP-01",
+      "name": "LED desk lamp with USB port",
+      "category": "desk_lamp",
+      "condition": "A",
+      "model": "DL-200",
+      "acquisition_cost": 6,
+      "refurb_cost": 2,
+      "resale_price": 22,
+      "status": "reserved",
+      "reserved_for": "Priya (REQ-3)"
+    },
+    {
+      "id": "LAMP-02",
+      "name": "Clip-on reading lamp",
+      "category": "desk_lamp",
+      "condition": "B",
+      "model": "CL-10",
+      "acquisition_cost": 3,
+      "refurb_cost": 1,
+      "resale_price": 12,
+      "status": "available",
+      "reserved_for": null
+    },
+    {
+      "id": "LAMP-03",
+      "name": "Swing-arm desk lamp",
+      "category": "desk_lamp",
+      "condition": "A",
+      "model": "SA-35",
+      "acquisition_cost": 7,
+      "refurb_cost": 2,
+      "resale_price": 24,
+      "status": "reserved",
+      "reserved_for": "walk-in buyer"
+    },
+    {
+      "id": "FAN-01",
+      "name": "Lasko 20-inch box fan",
+      "category": "fan",
+      "condition": "B",
+      "model": "LK-3733",
+      "acquisition_cost": 8,
+      "refurb_cost": 3,
+      "resale_price": 25,
+      "status": "reserved",
+      "reserved_for": "Priya (REQ-3)"
+    },
+    {
+      "id": "CHAIR-01",
+      "name": "Mesh office chair",
+      "category": "desk_chair",
+      "condition": "A",
+      "model": "MC-500",
+      "acquisition_cost": 30,
+      "refurb_cost": 8,
+      "resale_price": 75,
+      "status": "reserved",
+      "reserved_for": "Priya (REQ-3)"
+    },
+    {
+      "id": "CHAIR-02",
+      "name": "Folding desk chair",
+      "category": "desk_chair",
+      "condition": "B",
+      "model": "FC-20",
+      "acquisition_cost": 8,
+      "refurb_cost": 2,
+      "resale_price": 25,
+      "status": "available",
+      "reserved_for": null
+    },
+    {
+      "id": "DESK-01",
+      "name": "Compact 40-inch writing desk",
+      "category": "desk",
+      "condition": "B",
+      "model": "WD-40",
+      "acquisition_cost": 25,
+      "refurb_cost": 10,
+      "resale_price": 70,
+      "status": "available",
+      "reserved_for": null
+    },
+    {
+      "id": "BINS-01",
+      "name": "Set of 3 storage bins",
+      "category": "storage_bins",
+      "condition": "A",
+      "model": "SB-3",
+      "acquisition_cost": 5,
+      "refurb_cost": 1,
+      "resale_price": 18,
+      "status": "reserved",
+      "reserved_for": "Ana (REQ-1)"
+    },
+    {
+      "id": "SHELF-01",
+      "name": "5-tier bookshelf",
+      "category": "shelf",
+      "condition": "B",
+      "model": "BS-5",
+      "acquisition_cost": 12,
+      "refurb_cost": 4,
+      "resale_price": 38,
+      "status": "available",
+      "reserved_for": null
+    },
+    {
+      "id": "KITCH-01",
+      "name": "Kitchen starter set (pots, pan, utensils)",
+      "category": "kitchen_basics",
+      "condition": "B",
+      "model": "KS-12",
+      "acquisition_cost": 15,
+      "refurb_cost": 6,
+      "resale_price": 45,
+      "status": "reserved",
+      "reserved_for": "Marcus (REQ-2)"
+    },
+    {
+      "id": "HAMPER-01",
+      "name": "Laundry hamper + shower caddy",
+      "category": "storage_bins",
+      "condition": "A",
+      "model": "LH-2",
+      "acquisition_cost": 4,
+      "refurb_cost": 1,
+      "resale_price": 15,
+      "status": "available",
+      "reserved_for": null
+    },
+    {
+      "id": "LAMP-04",
+      "name": "Black Desk Lamp with USB Charging Port",
+      "category": "desk_lamp",
+      "condition": "A",
+      "model": "TT-DL13",
+      "acquisition_cost": 8,
+      "refurb_cost": 2,
+      "resale_price": 22,
+      "status": "reserved",
+      "reserved_for": "Ana (REQ-1)"
+    },
+    {
+      "id": "FAN-02",
+      "name": "Lasko 20 inch box fan",
+      "category": "fan",
+      "condition": "B",
+      "model": "3733",
+      "acquisition_cost": 7,
+      "refurb_cost": 3,
+      "resale_price": 21,
+      "status": "available",
+      "reserved_for": null
+    }
+  ],
+  "report": "**DONE: 3/3 kits verified, final audit passed.**\n\n| Student | Status | Attempts | Price | Margin |\n|---|---|---|---|---|\n| Ana | verified | 3 | $95 | 35% |\n| Marcus | verified | 2 | $170 | 39% |\n| Priya | verified | 1 | $122 | 37% |\n\n**Blocked at intake:** LIST-1: Rejected: model CC-17 is under a safety recall (ChillCube CC-17 mini-fridge: compressor overheating, fire hazard (simulated recall))\n\n**What the agents caught and fixed**\n\n- Ana’s kit (ID: FRIDGE-03) initially failed due to a safety recall on the ChillCube CC-17 mini-fridge; the agent recovered by substituting it with the verified Midea FRIDGE-04.\n- Marcus’s first attempt was blocked because FRIDGE-01 was reserved for an external walk-in buyer; he recovered by selecting the available Insignia FRIDGE-02 for his kit.\n- Both Ana and Marcus successfully shipped their kits with all items verified.",
+  "usage": {
+    "deepseek-ai/Deepseek-V4-Flash": {
+      "requests": 3,
+      "prompt": 644,
+      "completion": 164,
+      "cached": 0,
+      "cache_hit_rate": 0.0
+    },
+    "nvidia/NVIDIA-Nemotron-3-Super-120B-A12B": {
+      "requests": 6,
+      "prompt": 5229,
+      "completion": 557,
+      "cached": 0,
+      "cache_hit_rate": 0.0
+    },
+    "nvidia/Nemotron-3.5-Lightning-30B-A3B": {
+      "requests": 1,
+      "prompt": 972,
+      "completion": 109,
+      "cached": 0,
+      "cache_hit_rate": 0.0
+    }
+  }
+}
