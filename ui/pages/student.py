@@ -130,7 +130,8 @@ with left:
                                                     width="stretch"):
                     store.remove(res, kit, item["id"])
                     st.rerun()
-        st.page_link("ui/pages/shop.py", label="Add more for your room", icon=":material/add_shopping_cart:")
+        if u["role"] == "student":  # the admin storefront preview has no Shop page in its navigation
+            st.page_link("ui/pages/shop.py", label="Add more for your room", icon=":material/add_shopping_cart:")
     st.html(c.trust_strip())
     with st.expander("How we verified your kit"):
         caught = " ".join(x for a in kit["history"] for x in a["issues"])
