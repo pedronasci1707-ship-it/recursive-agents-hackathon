@@ -6,8 +6,8 @@ Photos from Wikimedia Commons, used under their licenses (resized to 640 px).
 |---|---|---|---|
 | `static/products/FRIDGE-01.jpg` | [Haier Mini Refridgerator.JPG](https://commons.wikimedia.org/wiki/File:Haier_Mini_Refridgerator.JPG) | BrittanyJ | CC BY-SA 3.0 |
 | `static/products/FRIDGE-03.jpg` | [Bar fridge.jpg](https://commons.wikimedia.org/wiki/File:Bar_fridge.jpg) | Misaochan | CC BY-SA 4.0 |
-| `static/products/MICRO-01.jpg` | [AKIRA Microwave Oven in Singapore HDB.jpg](https://commons.wikimedia.org/wiki/File:AKIRA_Microwave_Oven_in_Singapore_HDB.jpg) | EverrrHong | CC BY 4.0 |
-| `static/products/MICRO-02.jpg` | [Microwave oven flashon.jpg](https://commons.wikimedia.org/wiki/File:Microwave_oven_flashon.jpg) | Wrightmt | Public domain |
+| `static/products/MICRO-01.jpg` | [Black Panasonic Microwave.jpg](https://commons.wikimedia.org/wiki/File:Black_Panasonic_Microwave.jpg) | Stacyz76 | CC BY 2.0 |
+| `static/products/MICRO-02.jpg` | [White Panasonic Microwave.jpg](https://commons.wikimedia.org/wiki/File:White_Panasonic_Microwave.jpg) | librarianidol | CC BY 2.0 |
 | `static/products/LAMP-01.jpg` | [Concise bamboo eye protection LED desk lamp.jpg](https://commons.wikimedia.org/wiki/File:Concise_bamboo_eye_protection_LED_desk_lamp.jpg) | Indesign Technology | CC BY-SA 4.0 |
 | `static/products/LAMP-02.jpg` | [Dekala Arches™ Smart Lamp.jpg](https://commons.wikimedia.org/wiki/File:Dekala_Arches%E2%84%A2_Smart_Lamp.jpg) | LannyWay | CC BY-SA 4.0 |
 | `static/products/LAMP-03.jpg` | [Table lamp Gladiolus.jpg](https://commons.wikimedia.org/wiki/File:Table_lamp_Gladiolus.jpg) | Gotogo | CC BY-SA 4.0 |
@@ -26,4 +26,4 @@ Photos from Wikimedia Commons, used under their licenses (resized to 640 px).
 | `static/quality_tests/broken_light.jpg` | [Shattered light fixture 3.jpg](https://commons.wikimedia.org/wiki/File:Shattered_light_fixture_3.jpg) | W.carter | CC0 |
 | `static/quality_tests/new_mesh_chair.jpg` | [Sihoo M57 mesh office chair 05.jpg](https://commons.wikimedia.org/wiki/File:Sihoo_M57_mesh_office_chair_05.jpg) | Waldyrious | CC BY-SA 4.0 |
 | `static/products/FRIDGE-02.jpg` | [Inside Haier Mini Refridgerator.JPG](https://commons.wikimedia.org/wiki/File:Inside_Haier_Mini_Refridgerator.JPG) | BrittanyJ | CC BY-SA 3.0 |
-| `static/products/FRIDGE-04.jpg` | [SheratonHotelRoomMiniBar-2.jpg](https://commons.wikimedia.org/wiki/File:SheratonHotelRoomMiniBar-2.jpg) | Leon S.K. | CC BY-SA 2.0 |
+| `static/products/FRIDGE-04.jpg` | [Haier Mini Refridgerator.JPG](https://commons.wikimedia.org/wiki/File:Haier_Mini_Refridgerator.JPG) (same photo as FRIDGE-01) | BrittanyJ | CC BY-SA 3.0 |
