@@ -20,13 +20,8 @@ if res and st.session_state.get("source") == "live run on Crusoe":
     boards["live"] = flowboard.storyboard(res)
     labels["live"] = "Last real run on Crusoe"
 
-left, right = st.columns([3, 1.4], vertical_alignment="bottom")
-with left:
-    scenario = st.segmented_control("Run the real agents with", list(state.SCENARIOS), default="standard",
-                                    format_func=lambda k: state.SCENARIOS[k][0])
-with right:
-    run_live = st.button("Run the real agents on Crusoe", icon=":material/bolt:", width="stretch",
-                         disabled=not state.has_api_key(), help="Runs the real agent team now, then animates that run.")
+run_live = st.button("Run the real agents on Crusoe", icon=":material/bolt:",
+                     disabled=not state.has_api_key(), help="Runs the real agent team now, then animates that run.")
 
 if run_live:
     with st.status("The real agents are working on Crusoe…", expanded=False) as box:
@@ -36,7 +31,7 @@ if run_live:
             count["n"] += 1
             box.update(label=f"The real agents are working on Crusoe… {count['n']} steps")
 
-        state.run_agents(on_event, live=True, scenario=scenario or "standard")
+        state.run_agents(on_event, live=True, scenario="standard")
         box.update(label="Done", state="complete")
     if st.session_state.get("source") == "live run on Crusoe":
         st.session_state.autoplay_live = True
