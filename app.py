@@ -17,6 +17,7 @@ PAGES = {
     "kit": st.Page("ui/pages/student.py", title="My kit", url_path="my-kit"),
     "shop": st.Page("ui/pages/shop.py", title="Shop", url_path="shop"),
     "sell": st.Page("ui/pages/seller.py", title="Sell", url_path="sell"),
+    "items": st.Page("ui/pages/my_items.py", title="My items", url_path="my-items"),
     "livedemo": st.Page("ui/pages/livedemo.py", title="Live demo", icon=":material/play_circle:",
                         url_path="live-demo"),
     "control": st.Page("ui/pages/control.py", title="Agent control room", icon=":material/hub:",
@@ -24,8 +25,8 @@ PAGES = {
 }
 # The first page in each list is where that role lands after signing in.
 BY_ROLE = {
-    "student": ["kit", "shop", "sell"],
-    "seller": ["sell", "shop"],
+    "student": ["kit", "shop", "sell", "items"],
+    "seller": ["sell", "items", "shop"],
     "admin": ["livedemo", "control"],
 }
 

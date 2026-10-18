@@ -19,9 +19,8 @@ mine = st.session_state.setdefault(mine_key, [])
 
 c.page_header("Sell before you leave", f"Moving out, {name}?",
               "Add a photo to get a provisional offer. We confirm condition and operation at pickup.")
-tab_new, tab_mine = st.tabs(["Sell an item", f"My items ({len(mine)})"])
 
-with tab_new:
+with st.container():
     left, right = st.columns([1.15, 1], gap="large")
     with left, st.container(border=True):
         photo = st.file_uploader("Photo of the item (required)", type=["png", "jpg", "jpeg", "webp"])
@@ -100,6 +99,7 @@ with tab_new:
                     </div>""")
                 if offer["accepted"]:
                     st.success("Pickup booked. Find it under **My items**.")
+                    st.page_link("ui/pages/my_items.py", label="Go to My items", icon=":material/inventory_2:")
                 else:
                     with st.container(border=True):
                         st.markdown("**Schedule pickup**")
@@ -134,15 +134,3 @@ with tab_new:
                                     st.rerun()
             with st.expander("What we understood from your listing"):
                 st.json({k: p.get(k) for k in ("name", "category", "condition", "model", "color", "style", "notes")})
-
-with tab_mine:
-    if not mine:
-        st.info("Items you sell will show up here with their pickup details.")
-    for item in mine:
-        with st.container(border=True):
-            row, status = st.columns([5, 1.2], vertical_alignment="center")
-            row.html(f"""<div class="line" style="border:none;padding:4px 0">{c.tile(item["category"], 72, item)}
-                <div><div class="name">{c.esc(item["name"])}</div>
-                <div class="meta">Pickup {item['date']:%a, %b %d} · {item['window']} · {c.esc(item['where'])}</div></div>
-                <div class="price">${item['offer']}</div></div>""")
-            status.html(c.pill("Pickup booked", ico="event_available"))
